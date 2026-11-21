@@ -4,7 +4,7 @@ import { createApp } from './app';
 import { aiService } from './services/ai.service';
 
 const app = createApp();
-
+// Server startup
 app.listen(env.PORT, () => {
   console.log(`Share2Fix API listening on http://localhost:${env.PORT}`);
   console.log(`  Firebase project : ${env.FIREBASE_PROJECT_ID}`);
