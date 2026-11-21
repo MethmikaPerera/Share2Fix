@@ -16,7 +16,7 @@ import type { Authority, Report, Status } from '@/types';
 /** Officer/admin tools. The API re-checks that the report belongs to the officer's authority. */
 export function StaffPanel({ report, onChanged }: { report: Report; onChanged: () => void }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {report.behavioralCheck && report.behavioralCheck.riskLevel !== 'LOW' && (
         <Alert tone="warning" title={`Behavioral Verification Alert (${report.behavioralCheck.riskLevel} RISK)`}>
           <div className="space-y-1 text-xs">
@@ -24,7 +24,7 @@ export function StaffPanel({ report, onChanged }: { report: Report; onChanged: (
               Trust Score: <strong>{report.behavioralCheck.trustScore} / 100</strong>
             </p>
             {report.behavioralCheck.flags.length > 0 && (
-              <ul className="list-disc pl-4 mt-1">
+              <ul className="mt-1 list-disc pl-4">
                 {report.behavioralCheck.flags.map((flag, idx) => (
                   <li key={idx}>{flag}</li>
                 ))}
@@ -91,10 +91,10 @@ function StatusForm({ report, onChanged }: { report: Report; onChanged: () => vo
 
   return (
     <Card>
-      <CardHeader title="Update status" icon={<ClipboardCheck className="h-4 w-4" />} />
-      <form onSubmit={submit} className="space-y-3 p-4" noValidate>
-        <p className="text-sm text-forest-muted">
-          Current status: <strong className="text-forest">{labelOf(STATUSES, report.status)}</strong>
+      <CardHeader title="Update status" icon={<ClipboardCheck />} />
+      <form onSubmit={submit} className="space-y-4 p-5" noValidate>
+        <p className="text-sm text-ink-soft">
+          Current status: <strong className="text-ink">{labelOf(STATUSES, report.status)}</strong>
         </p>
         {error && <Alert tone="error">{error}</Alert>}
         {done && <Alert tone="success">Status updated and the citizen was notified.</Alert>}
@@ -166,8 +166,8 @@ function ProgressForm({ report, onChanged }: { report: Report; onChanged: () => 
 
   return (
     <Card>
-      <CardHeader title="Add progress update" icon={<MessageSquarePlus className="h-4 w-4" />} />
-      <form onSubmit={submit} className="space-y-3 p-4" noValidate>
+      <CardHeader title="Add progress update" icon={<MessageSquarePlus />} />
+      <form onSubmit={submit} className="space-y-4 p-5" noValidate>
         {error && <Alert tone="error">{error}</Alert>}
         <Field label="Update" htmlFor="progress-text">
           <Textarea id="progress-text" rows={3} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} />
@@ -209,9 +209,9 @@ function ReassignForm({ report, onChanged }: { report: Report; onChanged: () => 
 
   return (
     <Card>
-      <CardHeader title="Reassign authority" icon={<ArrowRightLeft className="h-4 w-4" />} />
-      <form onSubmit={submit} className="space-y-3 p-4" noValidate>
-        <p className="text-xs text-forest-muted">
+      <CardHeader title="Reassign authority" icon={<ArrowRightLeft />} />
+      <form onSubmit={submit} className="space-y-4 p-5" noValidate>
+        <p className="text-xs text-ink-soft">
           Routing is a suggestion based on configured coverage areas. If this report belongs elsewhere, reassign it. The change is recorded on the timeline.
         </p>
         {error && <Alert tone="error">{error}</Alert>}

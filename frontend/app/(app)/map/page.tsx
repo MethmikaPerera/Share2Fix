@@ -62,9 +62,9 @@ export default function MapPage() {
 
   return (
     <>
-      <PageHeader title="Issue map" description="Every pin is a community report. Click a pin for details. No personal information is shown on this map." />
+      <PageHeader eyebrow="Community" title="Issue map" description="Every pin is a community report. Click a pin for details. No personal information is shown on this map." />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <Select aria-label="Filter by status" className="!w-auto" value={status} onChange={(e) => setStatus(e.target.value as Status | '')}>
           <option value="">All statuses</option>
           {STATUSES.map((s) => (
@@ -99,31 +99,31 @@ export default function MapPage() {
             Issues near me
           </Button>
         )}
-        <span className="ml-auto text-sm text-forest-muted">{data ? `${data.length} issue${data.length === 1 ? '' : 's'}` : ''}</span>
+        <span className="ml-auto text-sm tabular-nums text-ink-soft">{data ? `${data.length} issue${data.length === 1 ? '' : 's'}` : ''}</span>
       </div>
       {geoError && (
-        <div className="mb-4">
+        <div className="mb-5">
           <Alert tone="warning">{geoError}</Alert>
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         <div className="relative">
           <IssueMap pins={data ?? []} userLocation={me} onSelect={(id) => router.push(`/reports/${id}`)} height="68vh" fit={!me} />
           {loading && (
             <div className="pointer-events-none absolute inset-x-0 top-3 z-[500] flex justify-center">
-              <span className="rounded-full bg-white px-3 py-1 text-xs shadow">Updating map...</span>
+              <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-soft shadow-float">Updating map...</span>
             </div>
           )}
         </div>
 
-        <div className="space-y-4">
-          <Card className="p-4">
-            <h2 className="mb-2 text-sm">Legend</h2>
-            <ul className="grid grid-cols-2 gap-1.5 text-xs">
+        <div className="space-y-6">
+          <Card className="p-5">
+            <h2 className="eyebrow mb-4 !font-sans">Legend</h2>
+            <ul className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-[0.8125rem] text-ink-soft">
               {STATUSES.map((s) => (
                 <li key={s.value} className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 rounded-full" style={{ background: STATUS_PIN_COLOR[s.value] }} aria-hidden />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: STATUS_PIN_COLOR[s.value] }} aria-hidden />
                   {s.label}
                 </li>
               ))}
@@ -131,20 +131,20 @@ export default function MapPage() {
           </Card>
 
           {me && (
-            <Card className="p-4">
-              <h2 className="mb-2 text-sm">Nearest issues</h2>
+            <Card className="p-5">
+              <h2 className="eyebrow mb-3 !font-sans">Nearest issues</h2>
               {loading && !data ? (
                 <Spinner />
               ) : nearest.length === 0 ? (
-                <p className="text-sm text-forest-muted">No issues within {radius} km.</p>
+                <p className="text-sm text-ink-soft">No issues within {radius} km.</p>
               ) : (
                 <ul className="divide-y divide-line">
                   {nearest.map(({ p, d }) => (
-                    <li key={p.id} className="py-2">
-                      <Link href={`/reports/${p.id}`} className="block text-sm font-medium text-forest no-underline hover:text-teal">
+                    <li key={p.id} className="py-3 first:pt-0 last:pb-0">
+                      <Link href={`/reports/${p.id}`} className="block font-serif text-base leading-snug text-ink no-underline hover:text-brand">
                         {p.title}
                       </Link>
-                      <p className="mt-0.5 flex items-center gap-2 text-xs text-forest-muted">
+                      <p className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-ink-faint">
                         {d.toFixed(1)} km - {labelOf(CATEGORIES, p.category)}
                         <StatusBadge status={p.status} />
                       </p>

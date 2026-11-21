@@ -15,6 +15,7 @@ export default function AdminReportsPage() {
 
   return (
     <>
+
       <PageHeader title="All reports" description="Every report on the platform. Open one to reassign it or update its status." />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="w-full max-w-sm sm:w-auto flex-1">
@@ -37,6 +38,7 @@ export default function AdminReportsPage() {
           />
           Show Flagged Reports Only
         </label>
+
       </div>
       <ReportList
         endpoint="/reports/managed"

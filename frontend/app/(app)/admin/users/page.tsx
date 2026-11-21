@@ -37,6 +37,7 @@ export default function AdminUsersPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Administration"
         title="User management"
         description="Citizens register themselves. Create officer and administrator accounts here, link officers to an authority, or deactivate accounts."
         action={
@@ -56,7 +57,7 @@ export default function AdminUsersPage() {
         />
       )}
       {rowError && (
-        <div className="mb-4">
+        <div className="mb-5">
           <Alert tone="error">{rowError}</Alert>
         </div>
       )}
@@ -70,25 +71,25 @@ export default function AdminUsersPage() {
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="border-b border-line bg-mint text-xs uppercase tracking-wide text-forest-muted">
+            <thead className="border-b border-line bg-sunken/70 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
               <tr>
-                <th className="px-4 py-3">User</th>
-                <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">Authority</th>
-                <th className="px-4 py-3">Joined</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-5 py-3.5">User</th>
+                <th className="px-5 py-3.5">Role</th>
+                <th className="px-5 py-3.5">Authority</th>
+                <th className="px-5 py-3.5">Joined</th>
+                <th className="px-5 py-3.5">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {users.data!.map((u) => {
                 const self = u.uid === profile?.uid;
                 return (
-                  <tr key={u.uid} className={u.isActive ? '' : 'bg-mint text-forest-muted'}>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-forest">{u.fullName}</p>
-                      <p className="text-xs text-forest-muted">{u.email}</p>
+                  <tr key={u.uid} className={`transition-colors hover:bg-paper ${u.isActive ? '' : 'bg-sunken/60 text-ink-faint'}`}>
+                    <td className="px-5 py-3.5">
+                      <p className="font-medium text-ink">{u.fullName}</p>
+                      <p className="text-xs text-ink-faint">{u.email}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       <Select
                         aria-label={`Role for ${u.fullName}`}
                         className="!h-9 !w-44"
@@ -110,7 +111,7 @@ export default function AdminUsersPage() {
                         ))}
                       </Select>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       {u.role === 'AUTHORITY_OFFICER' ? (
                         <Select
                           aria-label={`Authority for ${u.fullName}`}
@@ -126,11 +127,11 @@ export default function AdminUsersPage() {
                           ))}
                         </Select>
                       ) : (
-                        <span className="text-forest-muted">-</span>
+                        <span className="text-ink-faint">&ndash;</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-forest-muted">{formatDate(u.createdAt)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5 text-ink-soft">{formatDate(u.createdAt)}</td>
+                    <td className="px-5 py-3.5">
                       <Button
                         size="sm"
                         variant={u.isActive ? 'secondary' : 'primary'}
@@ -184,9 +185,9 @@ function CreateUserForm({ authorities, onCreated }: { authorities: Authority[]; 
   }
 
   return (
-    <Card className="mb-6">
+    <Card className="mb-8">
       <CardHeader title="New officer or administrator" />
-      <form onSubmit={submit} className="grid gap-4 p-5 sm:grid-cols-2" noValidate>
+      <form onSubmit={submit} className="grid gap-5 p-6 sm:grid-cols-2" noValidate>
         {error && (
           <div className="sm:col-span-2">
             <Alert tone="error">{error}</Alert>

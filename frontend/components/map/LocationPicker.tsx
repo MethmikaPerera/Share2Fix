@@ -14,7 +14,7 @@ interface Props {
 const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const PIN_SVG =
-  '<svg width="34" height="42" viewBox="0 0 30 38" aria-hidden="true"><path d="M15 1C7.8 1 2 6.8 2 14c0 9.6 13 23 13 23s13-13.4 13-23C28 6.8 22.2 1 15 1Z" fill="#087F78" stroke="#fff" stroke-width="2"/><circle cx="15" cy="14" r="5" fill="#fff"/></svg>';
+  '<svg width="34" height="42" viewBox="0 0 30 38" aria-hidden="true"><path d="M15 1C7.8 1 2 6.8 2 14c0 9.6 13 23 13 23s13-13.4 13-23C28 6.8 22.2 1 15 1Z" fill="#0b5d59" stroke="#fdfcf9" stroke-width="2"/><circle cx="15" cy="14" r="4.5" fill="#fdfcf9"/></svg>';
 
 /** Click the map (or drag the pin) to choose the issue location. */
 export function LocationPicker({ value, onChange, height = '320px' }: Props) {
@@ -90,7 +90,7 @@ export function LocationPicker({ value, onChange, height = '320px' }: Props) {
     <div
       ref={containerRef}
       style={{ height }}
-      className="w-full overflow-hidden rounded-lg border border-line"
+      className="w-full overflow-hidden rounded-md border border-line-strong"
       role="application"
       aria-label="Choose the issue location on the map"
     />

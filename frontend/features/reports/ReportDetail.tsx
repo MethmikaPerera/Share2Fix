@@ -139,9 +139,10 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
 
   return (
     <div>
-      <Link href={backHref} className="mb-4 inline-flex items-center gap-1 text-sm font-medium no-underline hover:underline">
+      <Link href={backHref} className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft no-underline transition-colors hover:text-brand">
         <ArrowLeft className="h-4 w-4" aria-hidden /> {backLabel}
       </Link>
+
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
@@ -166,6 +167,7 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
           <Card className="overflow-hidden">
             <div className="p-5 sm:p-6">
               <div className="flex flex-wrap items-center gap-1.5">
+
                 <StatusBadge status={r.status} />
                 <CategoryBadge category={r.category} />
                 <PriorityBadge priority={r.priority} />
@@ -180,95 +182,24 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
                   </span>
                 )}
               </div>
-              <h1 className="mt-3 text-2xl sm:text-3xl">{r.title}</h1>
-              <p className="mt-1 text-sm text-forest-muted">
+              <h1 className="mt-5 text-[2rem] leading-[1.1] sm:text-[2.625rem]">{r.title}</h1>
+              <p className="mt-3 text-sm text-ink-faint">
                 Reported {formatDate(r.createdAt, true)}
                 {r.reporter && <> by {r.reporter.name}</>}
               </p>
-              <p className="mt-4 whitespace-pre-line text-forest">{r.description}</p>
+              <p className="mt-6 max-w-prose whitespace-pre-line text-base leading-[1.7] text-ink">{r.description}</p>
               {r.imageUrls.length > 0 && <EvidenceGallery urls={r.imageUrls} label="Issue photo" />}
-              <p className="mt-4 flex items-start gap-1.5 text-sm text-forest-muted">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-turquoise" aria-hidden />
+              <p className="mt-6 flex items-start gap-2 border-t border-line pt-5 text-sm text-ink-soft">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
                 {r.location.address || `${r.location.latitude.toFixed(5)}, ${r.location.longitude.toFixed(5)}`}
               </p>
             </div>
-            <IssueMap pins={pin} height="260px" />
+            <div className="border-t border-line">
+              <IssueMap pins={pin} height="260px" />
+            </div>
           </Card>
 
-          {r.behavioralCheck && (
-            <Card className="overflow-hidden">
-              <CardHeader title="AI & Behavioral Verification" icon={<ShieldCheck className="h-4 w-4 text-turquoise" />} />
-              <div className="space-y-3 p-5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Trust Assessment:</span>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        r.behavioralCheck.riskLevel === 'LOW'
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
-                          : r.behavioralCheck.riskLevel === 'MEDIUM'
-                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
-                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300'
-                      }`}
-                    >
-                      {r.behavioralCheck.trustScore} / 100 • {r.behavioralCheck.riskLevel} RISK
-                    </span>
-                  </div>
-                  <span className="text-xs text-forest-muted">Checked during report submission</span>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
-                  <div className="rounded-lg border border-line bg-mint p-3">
-                    <p className="text-xs font-medium text-forest-muted">Multimodal Image Check</p>
-                    <p className="mt-1 font-semibold flex items-center gap-1.5 text-xs">
-                      {r.behavioralCheck.details.isCivicIssue ? (
-                        <span className="text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Civic Issue Confirmed
-                        </span>
-                      ) : (
-                        <span className="text-danger flex items-center gap-1">
-                          <TriangleAlert className="h-3.5 w-3.5" /> Non-civic image flag
-                        </span>
-                      )}
-                    </p>
-                    <p className="mt-0.5 text-xs text-forest-muted">
-                      {r.behavioralCheck.details.matchesDescription ? 'Matches report description' : 'Description mismatch flagged'}
-                    </p>
-                  </div>
-
-                  <div className="rounded-lg border border-line bg-mint p-3">
-                    <p className="text-xs font-medium text-forest-muted">Behavioral Patterns</p>
-                    <p className="mt-1 font-semibold flex items-center gap-1.5 text-xs">
-                      {!r.behavioralCheck.details.isDuplicateImage ? (
-                        <span className="text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Original Photo Verified
-                        </span>
-                      ) : (
-                        <span className="text-danger flex items-center gap-1">
-                          <TriangleAlert className="h-3.5 w-3.5" /> Duplicate image detected
-                        </span>
-                      )}
-                    </p>
-                    <p className="mt-0.5 text-xs text-forest-muted">
-                      Velocity: {r.behavioralCheck.details.velocityCountLast5Min} in 5 min • GPS:{' '}
-                      {r.behavioralCheck.details.geoSpeedKmH ? `${r.behavioralCheck.details.geoSpeedKmH} km/h` : 'Consistent'}
-                    </p>
-                  </div>
-                </div>
-
-                {r.behavioralCheck.flags.length > 0 && (
-                  <div className="rounded-md border border-amber-400/30 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
-                    <p className="font-semibold mb-1">Behavioral Warnings / Flags:</p>
-                    <ul className="list-disc pl-4 space-y-0.5">
-                      {r.behavioralCheck.flags.map((f, i) => (
-                        <li key={i}>{f}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </Card>
-          )}
+          {r.behavioralCheck && <VerificationCard check={r.behavioralCheck} />}
 
           {r.status === 'RESOLVED' && r.resolution && <ResolutionCard report={r} onChanged={reloadAll} />}
 
@@ -280,7 +211,7 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
 
           <Card>
             <CardHeader title="Timeline" />
-            <div className="p-5">
+            <div className="p-6">
               {timeline.loading && !timeline.data ? <Spinner /> : timeline.error ? <ErrorState message={timeline.error} onRetry={timeline.reload} /> : <Timeline events={timeline.data ?? []} />}
             </div>
           </Card>
@@ -288,17 +219,17 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
           <CommentsCard reportId={r.id} state={comments} canComment={!!profile} onCommentAdded={reloadAll} />
         </div>
 
-        <aside className="space-y-4">
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
+        <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
+          <Card className="p-6">
+            <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="text-3xl font-bold tabular-nums">{r.supportCount}</p>
-                <p className="text-sm text-forest-muted">{r.supportCount === 1 ? 'citizen supports' : 'citizens support'} this</p>
+                <p className="font-serif text-[3rem] font-normal leading-none tabular-nums">{r.supportCount}</p>
+                <p className="mt-2 text-sm text-ink-soft">{r.supportCount === 1 ? 'citizen supports' : 'citizens support'} this</p>
               </div>
               <SupportButton report={r} onChanged={report.reload} />
             </div>
-            <p className="mt-3 flex items-center gap-1 text-sm text-forest-muted">
-              <MessageSquare className="h-4 w-4" aria-hidden /> {r.commentCount} comment{r.commentCount === 1 ? '' : 's'}
+            <p className="mt-5 flex items-center gap-2 border-t border-line pt-4 text-sm text-ink-soft">
+              <MessageSquare className="h-4 w-4 text-ink-faint" aria-hidden /> {r.commentCount} comment{r.commentCount === 1 ? '' : 's'}
             </p>
           </Card>
 
@@ -450,15 +381,15 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
           )}
 
           <Card>
-            <CardHeader title="Responsible authority" icon={<Building2 className="h-4 w-4" />} />
-            <div className="space-y-2 p-4 text-sm">
+            <CardHeader title="Responsible authority" icon={<Building2 />} />
+            <div className="space-y-2.5 p-5 text-sm">
               {r.assignedAuthority ? (
-                <p className="font-semibold">{r.assignedAuthority.name}</p>
+                <p className="font-serif text-lg leading-snug">{r.assignedAuthority.name}</p>
               ) : (
-                <p className="font-semibold text-amber-ink">Not assigned yet</p>
+                <p className="font-semibold text-brass-ink">Not assigned yet</p>
               )}
-              <p className="text-xs text-forest-muted">{r.routing.note}</p>
-              {r.routing.isDemoData && <p className="rounded bg-amber-soft px-2 py-1 text-xs text-amber-ink">Demonstration authority data</p>}
+              <p className="text-[0.8125rem] leading-relaxed text-ink-soft">{r.routing.note}</p>
+              {r.routing.isDemoData && <p className="inline-block rounded-sm bg-brass-tint px-2 py-1 text-xs text-brass-ink">Demonstration authority data</p>}
             </div>
           </Card>
 
@@ -568,6 +499,76 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
   );
 }
 
+// --------------------------------------------------------- AI & behavioural check
+type BehavioralCheck = NonNullable<Report['behavioralCheck']>;
+
+const RISK_STYLE: Record<string, string> = {
+  LOW: 'border-brand/30 bg-brand-tint text-brand-deep',
+  MEDIUM: 'border-brass/50 bg-brass-tint text-brass-ink',
+  HIGH: 'border-danger/40 bg-danger-tint text-danger',
+};
+
+function CheckRow({ ok, title, detail, okText, badText }: { ok: boolean; title: string; detail: string; okText: string; badText: string }) {
+  return (
+    <div className="rounded-md border border-line bg-paper p-4">
+      <p className="eyebrow">{title}</p>
+      <p className={`mt-2 flex items-center gap-1.5 text-sm font-semibold ${ok ? 'text-brand-deep' : 'text-danger'}`}>
+        {ok ? <CheckCircle2 className="h-4 w-4" aria-hidden /> : <TriangleAlert className="h-4 w-4" aria-hidden />}
+        {ok ? okText : badText}
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-ink-soft">{detail}</p>
+    </div>
+  );
+}
+
+function VerificationCard({ check }: { check: BehavioralCheck }) {
+  const d = check.details;
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader title="AI & behavioural verification" icon={<ShieldCheck />} />
+      <div className="space-y-4 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">Trust assessment</span>
+            <span className={`inline-flex items-center rounded-full border px-2.5 py-[3px] text-xs font-semibold tabular-nums ${RISK_STYLE[check.riskLevel] ?? RISK_STYLE.HIGH}`}>
+              {check.trustScore} / 100 &middot; {check.riskLevel} risk
+            </span>
+          </div>
+          <span className="text-xs text-ink-faint">Checked during report submission</span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <CheckRow
+            title="Multimodal image check"
+            ok={d.isCivicIssue}
+            okText="Civic issue confirmed"
+            badText="Non-civic image flag"
+            detail={d.matchesDescription ? 'Matches report description' : 'Description mismatch flagged'}
+          />
+          <CheckRow
+            title="Behavioural patterns"
+            ok={!d.isDuplicateImage}
+            okText="Original photo verified"
+            badText="Duplicate image detected"
+            detail={`Velocity: ${d.velocityCountLast5Min} in 5 min · GPS: ${d.geoSpeedKmH ? `${d.geoSpeedKmH} km/h` : 'consistent'}`}
+          />
+        </div>
+
+        {check.flags.length > 0 && (
+          <div className="rounded-md border-l-[3px] border-brass bg-brass-tint p-4 text-xs text-brass-ink">
+            <p className="mb-1.5 font-semibold">Behavioural warnings</p>
+            <ul className="list-disc space-y-0.5 pl-4">
+              {check.flags.map((f, i) => (
+                <li key={i}>{f}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 // ------------------------------------------------------------------ support
 function SupportButton({ report, onChanged }: { report: Report; onChanged: () => void }) {
   const { profile } = useAuth();
@@ -611,18 +612,18 @@ function AiCard({ report }: { report: Report }) {
   const ai = report.aiAnalysis;
   return (
     <Card>
-      <CardHeader title="AI analysis" icon={<Sparkles className="h-4 w-4" />} />
-      <div className="space-y-2 p-4 text-sm">
+      <CardHeader title="AI analysis" icon={<Sparkles />} />
+      <div className="space-y-3 p-5 text-sm leading-relaxed">
         {ai.status === 'OK' ? (
           <>
             <p>{ai.summary}</p>
-            <p className="text-xs text-forest-muted">
+            <p className="text-xs text-ink-soft">
               Suggested: {ai.category && labelOf(CATEGORIES, ai.category)} / {ai.priority && labelOf(PRIORITIES, ai.priority)} priority - {Math.round(ai.confidence * 100)}% confidence
             </p>
             {ai.keywords.length > 0 && (
               <ul className="flex flex-wrap gap-1">
                 {ai.keywords.map((k) => (
-                  <li key={k} className="rounded-full bg-pale px-2 py-0.5 text-xs">
+                  <li key={k} className="rounded-full bg-sunken px-2.5 py-0.5 text-xs text-ink-soft">
                     {k}
                   </li>
                 ))}
@@ -630,9 +631,9 @@ function AiCard({ report }: { report: Report }) {
             )}
           </>
         ) : (
-          <p className="text-forest-muted">AI analysis was not available when this report was submitted.</p>
+          <p className="text-ink-soft">AI analysis was not available when this report was submitted.</p>
         )}
-        <p className="text-xs text-forest-muted">AI output is a recommendation, not an official decision.</p>
+        <p className="border-t border-line pt-3 text-xs text-ink-faint">AI output is a recommendation, not an official decision.</p>
       </div>
     </Card>
   );
@@ -661,8 +662,8 @@ function ClassificationCard({ report, onChanged }: { report: Report; onChanged: 
 
   return (
     <Card>
-      <CardHeader title="Correct classification" icon={<Pencil className="h-4 w-4" />} />
-      <div className="space-y-3 p-4">
+      <CardHeader title="Correct classification" icon={<Pencil />} />
+      <div className="space-y-4 p-5">
         {error && <Alert tone="error">{error}</Alert>}
         <Field label="Category" htmlFor="cls-category">
           <Select id="cls-category" value={category} onChange={(e) => setCategory(e.target.value as Category)}>
@@ -683,7 +684,7 @@ function ClassificationCard({ report, onChanged }: { report: Report; onChanged: 
           </Select>
         </Field>
         {ai.status === 'OK' && ai.category && ai.priority && (ai.category !== category || ai.priority !== priority) && (
-          <button type="button" className="text-xs font-semibold text-teal underline" onClick={() => { setCategory(ai.category!); setPriority(ai.priority!); }}>
+          <button type="button" className="text-xs font-semibold text-brand underline underline-offset-4" onClick={() => { setCategory(ai.category!); setPriority(ai.priority!); }}>
             Apply AI suggestion
           </button>
         )}
@@ -722,32 +723,32 @@ function ResolutionCard({ report, onChanged }: { report: Report; onChanged: () =
 
   const mine = report.viewer.myVerification;
   return (
-    <Card className="border-teal/40">
-      <CardHeader title="Resolution" icon={<CheckCircle2 className="h-4 w-4" />} />
-      <div className="space-y-4 p-5">
+    <Card className="overflow-hidden border-brand/40">
+      <CardHeader title="Resolution" icon={<CheckCircle2 />} />
+      <div className="space-y-5 p-6">
         <div>
           <p className="text-sm font-semibold">Marked resolved by {res.resolvedBy}</p>
-          <p className="text-xs text-forest-muted">{formatDate(res.resolvedAt, true)}</p>
-          <p className="mt-2 whitespace-pre-line text-sm">{res.explanation}</p>
+          <p className="text-xs text-ink-soft">{formatDate(res.resolvedAt, true)}</p>
+          <p className="mt-3 whitespace-pre-line text-sm leading-relaxed">{res.explanation}</p>
           <EvidenceGallery urls={res.evidenceUrls} label="Resolution evidence" />
         </div>
 
-        <div className="rounded-lg bg-mint p-4">
-          <p className="text-sm font-semibold">Community verification</p>
-          <p className="mt-0.5 text-xs text-forest-muted">
+        <div className="rounded-md border border-line bg-paper p-5">
+          <p className="font-serif text-lg">Community verification</p>
+          <p className="mt-0.5 text-xs text-ink-soft">
             Independent of the authority&apos;s decision: citizens confirm or dispute that the problem was really fixed.
           </p>
           <div className="mt-2 flex gap-4 text-sm">
-            <span className="flex items-center gap-1 text-teal-dark">
+            <span className="flex items-center gap-1.5 font-medium text-brand-deep">
               <ThumbsUp className="h-4 w-4" aria-hidden /> {report.verification.confirmed} confirmed
             </span>
-            <span className={`flex items-center gap-1 ${report.verification.disputed ? 'text-danger' : 'text-forest-muted'}`}>
+            <span className={`flex items-center gap-1.5 font-medium ${report.verification.disputed ? 'text-danger' : 'text-ink-faint'}`}>
               <ThumbsDown className="h-4 w-4" aria-hidden /> {report.verification.disputed} disputed
             </span>
           </div>
 
           {report.verification.disputed > 0 && (
-            <p className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-ink">
+            <p className="mt-2 flex items-center gap-1 text-xs font-medium text-brass-ink">
               <TriangleAlert className="h-3.5 w-3.5" aria-hidden /> Some citizens report that the issue is not fully fixed.
             </p>
           )}
@@ -756,7 +757,7 @@ function ResolutionCard({ report, onChanged }: { report: Report; onChanged: () =
             <div className="mt-3 space-y-2">
               {error && <Alert tone="error">{error}</Alert>}
               {mine && (
-                <p className="text-xs text-forest-muted">
+                <p className="text-xs text-ink-soft">
                   You {mine === 'CONFIRMED' ? 'confirmed' : 'disputed'} this resolution. You can change your answer.
                 </p>
               )}
@@ -832,8 +833,8 @@ function CommentsCard({
 
   return (
     <Card>
-      <CardHeader title={`Comments${state.data ? ` (${state.data.length})` : ''}`} icon={<MessageSquare className="h-4 w-4" />} />
-      <div className="space-y-4 p-5">
+      <CardHeader title={`Comments${state.data ? ` (${state.data.length})` : ''}`} icon={<MessageSquare />} />
+      <div className="space-y-5 p-6">
         {state.loading && !state.data ? (
           <Spinner />
         ) : state.error ? (
@@ -841,18 +842,18 @@ function CommentsCard({
         ) : state.data && state.data.length > 0 ? (
           <ul className="space-y-3">
             {state.data.map((c) => (
-              <li key={c.id} className="rounded-lg bg-mint p-3 text-sm">
-                <p className="flex flex-wrap items-center gap-x-2 text-xs text-forest-muted">
-                  <strong className="text-forest">{c.userName}</strong>
-                  {c.userRole !== 'CITIZEN' && <span className="rounded-full bg-teal px-2 py-0.5 font-semibold text-white">{ROLE_LABELS[c.userRole]}</span>}
+              <li key={c.id} className="rounded-md border border-line bg-paper p-4 text-sm">
+                <p className="flex flex-wrap items-center gap-x-2 text-xs text-ink-faint">
+                  <strong className="text-ink">{c.userName}</strong>
+                  {c.userRole !== 'CITIZEN' && <span className="rounded-sm bg-brand px-1.5 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-white">{ROLE_LABELS[c.userRole]}</span>}
                   <span>{timeAgo(c.createdAt)}</span>
                 </p>
-                <p className="mt-1 whitespace-pre-line">{c.text}</p>
+                <p className="mt-1.5 whitespace-pre-line leading-relaxed">{c.text}</p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-forest-muted">No comments yet. Add details that could help the authority.</p>
+          <p className="text-sm text-ink-faint">No comments yet. Add details that could help the authority.</p>
         )}
 
         {canComment ? (

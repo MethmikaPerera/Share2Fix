@@ -130,31 +130,30 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const labelOf = <T extends string>(list: { value: T; label: string }[], v: T) =>
   list.find((i) => i.value === v)?.label ?? v;
 
-/** Semantic colour classes per status (tokens only). */
-export const STATUS_STYLE: Record<Status, string> = {
-  SUBMITTED: 'bg-white text-forest-muted ring-line',
-  UNDER_REVIEW: 'bg-amber-soft text-amber-ink ring-amber/50',
-  ACCEPTED: 'bg-pale text-teal ring-turquoise/40',
-  IN_PROGRESS: 'bg-teal/10 text-teal-dark ring-teal/30',
-  RESOLVED: 'bg-teal text-white ring-teal',
-  REJECTED: 'bg-danger-soft text-danger ring-danger/30',
-};
-
+/** Priority chip styling (tokens only). Low/medium stay quiet; high/critical draw the eye. */
 export const PRIORITY_STYLE: Record<Priority, string> = {
-  LOW: 'bg-white text-forest-muted ring-line',
-  MEDIUM: 'bg-pale text-teal-dark ring-turquoise/40',
-  HIGH: 'bg-amber-soft text-amber-ink ring-amber',
-  CRITICAL: 'bg-danger text-white ring-danger',
+  LOW: 'border-line bg-surface text-ink-faint',
+  MEDIUM: 'border-line bg-surface text-ink-soft',
+  HIGH: 'border-brass/50 bg-brass-tint text-brass-ink',
+  CRITICAL: 'border-danger bg-danger text-white',
 };
 
-/** Hex colours for map markers (must match tokens in globals.css). */
+/** Hex colours for status dots and map markers (must match the tokens in globals.css). */
 export const STATUS_PIN_COLOR: Record<Status, string> = {
-  SUBMITTED: '#4A6664',
-  UNDER_REVIEW: '#F2B84B',
-  ACCEPTED: '#25BDB5',
-  IN_PROGRESS: '#087F78',
-  RESOLVED: '#173B3A',
-  REJECTED: '#B42318',
+  SUBMITTED: '#8a9492',
+  UNDER_REVIEW: '#b08430',
+  ACCEPTED: '#3f8c86',
+  IN_PROGRESS: '#0b5d59',
+  RESOLVED: '#2f6b45',
+  REJECTED: '#a32d22',
+};
+
+/** Hex colours for priority bars. */
+export const PRIORITY_COLOR: Record<Priority, string> = {
+  LOW: '#8a9492',
+  MEDIUM: '#3f8c86',
+  HIGH: '#b08430',
+  CRITICAL: '#a32d22',
 };
 
 export const SRI_LANKA_CENTER: [number, number] = [7.8731, 80.7718];

@@ -7,7 +7,7 @@ import { ReportList } from '@/features/reports/ReportList';
 export default function MyReportsPage() {
   return (
     <>
-      <PageHeader title="My reports" description="Track the progress of everything you have reported." action={<LinkButton href="/report/new">New report</LinkButton>} />
+      <PageHeader eyebrow="Citizen" title="My reports" description="Track the progress of everything you have reported." action={<LinkButton href="/report/new">New report</LinkButton>} />
       <ReportList
         endpoint="/reports/mine"
         showCategory={false}

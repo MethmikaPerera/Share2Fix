@@ -7,6 +7,7 @@ export default function ExplorePage() {
   return (
     <>
       <PageHeader
+        eyebrow="Community"
         title="Explore community issues"
         description="Browse what your neighbours have reported. Support reports that matter to you so authorities see what needs attention first."
       />

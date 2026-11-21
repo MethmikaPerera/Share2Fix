@@ -4,12 +4,53 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Feedback';
 import { Field, Input } from '@/components/ui/Form';
-import { authErrorMessage } from '@/lib/authErrors';
+import { authErrorMessage, isPopupDismissed } from '@/lib/authErrors';
 import { errorMessage } from '@/lib/api';
 import { homePathFor, useAuth } from './AuthProvider';
+
+function GoogleLogo() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" aria-hidden>
+      <path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.46a5.52 5.52 0 0 1-2.4 3.62v3h3.88c2.27-2.09 3.58-5.17 3.58-8.81Z" />
+      <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.94-2.91l-3.88-3c-1.07.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.71-4.95H1.28v3.1A12 12 0 0 0 12 24Z" />
+      <path fill="#FBBC05" d="M5.29 14.29a7.2 7.2 0 0 1 0-4.58v-3.1H1.28a12 12 0 0 0 0 10.78l4.01-3.1Z" />
+      <path fill="#EA4335" d="M12 4.75c1.76 0 3.34.61 4.58 1.8l3.44-3.44C17.95 1.19 15.23 0 12 0A12 12 0 0 0 1.28 6.61l4.01 3.1C6.23 6.86 8.88 4.75 12 4.75Z" />
+    </svg>
+  );
+}
+
+/** "Continue with Google" + an "or" divider. Works for both sign-in and first-time sign-up (a citizen profile is created automatically). */
+function GoogleSection({ onError }: { onError: (message: string | null) => void }) {
+  const { loginWithGoogle, configured } = useAuth();
+  const [busy, setBusy] = useState(false);
+
+  async function onClick() {
+    onError(null);
+    setBusy(true);
+    try {
+      await loginWithGoogle();
+      // On success the auth listener loads the profile and useRedirectIfSignedIn navigates away.
+    } catch (err) {
+      if (!isPopupDismissed(err)) onError(authErrorMessage(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <Button type="button" variant="secondary" size="lg" className="w-full" loading={busy} disabled={!configured} onClick={onClick} icon={<GoogleLogo />}>
+        Continue with Google
+      </Button>
+      <div className="flex items-center gap-4 text-xs uppercase tracking-wider text-ink-faint" role="separator" aria-label="or">
+        <span className="h-px flex-1 bg-line" />
+        or
+        <span className="h-px flex-1 bg-line" />
+      </div>
+    </>
+  );
+}
 
 function SetupNotice() {
   const { configured } = useAuth();
@@ -23,15 +64,15 @@ function SetupNotice() {
 
 function AuthCard({ title, subtitle, children, footer }: { title: string; subtitle: string; children: ReactNode; footer: ReactNode }) {
   return (
-    <Card className="p-6 sm:p-8">
-      <h1 className="text-2xl">{title}</h1>
-      <p className="mb-5 mt-1 text-sm text-forest-muted">{subtitle}</p>
-      <div className="space-y-4">
+    <div>
+      <h1 className="text-[2.125rem] leading-[1.1]">{title}</h1>
+      <p className="mb-8 mt-3 text-[0.9375rem] leading-relaxed text-ink-soft">{subtitle}</p>
+      <div className="space-y-5">
         <SetupNotice />
         {children}
       </div>
-      <div className="mt-6 border-t border-line pt-4 text-center text-sm text-forest-muted">{footer}</div>
-    </Card>
+      <div className="mt-8 border-t border-line pt-5 text-center text-sm text-ink-soft">{footer}</div>
+    </div>
   );
 }
 
@@ -83,15 +124,16 @@ function LoginInner() {
         </>
       }
     >
-      <form onSubmit={onSubmit} className="space-y-4" noValidate>
+      <form onSubmit={onSubmit} className="space-y-5" noValidate>
         {(error || sessionError) && <Alert tone="error">{error ?? sessionError}</Alert>}
+        <GoogleSection onError={setError} />
         <Field label="Email" htmlFor="email" required>
           <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Password" htmlFor="password" required>
           <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
-        <div className="text-right text-sm">
+        <div className="-mt-1 text-right text-[0.8125rem]">
           <Link href="/forgot-password">Forgot password?</Link>
         </div>
         <Button type="submit" loading={busy} className="w-full" size="lg" disabled={!email || !password}>
@@ -149,8 +191,9 @@ function RegisterInner() {
         </>
       }
     >
-      <form onSubmit={onSubmit} className="space-y-4" noValidate>
+      <form onSubmit={onSubmit} className="space-y-5" noValidate>
         {error && <Alert tone="error">{error}</Alert>}
+        <GoogleSection onError={setError} />
         <Field label="Full name" htmlFor="fullName" required>
           <Input id="fullName" autoComplete="name" required minLength={2} maxLength={80} value={form.fullName} onChange={set('fullName')} />
         </Field>
@@ -169,7 +212,7 @@ function RegisterInner() {
         <Button type="submit" loading={busy} className="w-full" size="lg" disabled={!form.fullName || !form.email || !form.password}>
           Create account
         </Button>
-        <p className="text-center text-xs text-forest-muted">New accounts are citizen accounts. Authority access is granted by an administrator.</p>
+        <p className="text-center text-xs text-ink-faint">New accounts are citizen accounts. Authority access is granted by an administrator.</p>
       </form>
     </AuthCard>
   );
@@ -218,7 +261,7 @@ export function ForgotPasswordForm() {
           If an account exists for {email}, a password reset link is on its way.
         </Alert>
       ) : (
-        <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <form onSubmit={onSubmit} className="space-y-5" noValidate>
           {error && <Alert tone="error">{error}</Alert>}
           <Field label="Email" htmlFor="email" required>
             <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />

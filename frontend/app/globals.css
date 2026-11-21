@@ -2,48 +2,131 @@
 
 /*
  * Share2Fix design tokens.
- * Brand palette (exact values from the brand guide) + a few semantic tints derived from it.
- * Use tokens (bg-mint, text-forest, ...) - never raw hex values - in components.
+ *
+ * Direction: a quiet, editorial civic identity. Warm paper canvas, deep teal as the single brand colour,
+ * a restrained brass accent for emphasis, hairline borders instead of shadows, serif display type.
+ * Use tokens (bg-paper, text-ink, border-line ...) - never raw hex values - in components.
  */
 @theme {
-  /* Brand palette */
-  --color-mint: #F5FAF9;        /* main background */
-  --color-teal: #087F78;        /* navigation, primary buttons */
-  --color-turquoise: #25BDB5;   /* icons, highlights (decorative; not for small text) */
-  --color-pale: #DDF4F0;        /* cards, secondary backgrounds */
-  --color-amber: #F2B84B;       /* hazard alerts, warnings */
-  --color-forest: #173B3A;      /* headings, primary text */
-  --color-line: #E2ECEA;        /* borders, dividers */
-  --color-white: #FFFFFF;       /* cards, forms, inputs */
+  /* Surfaces */
+  --color-paper: #f6f4ee;          /* page canvas */
+  --color-surface: #fdfcf9;        /* cards, inputs */
+  --color-sunken: #eeebe3;         /* recessed fills, table headers */
 
-  /* Derived semantic tints */
-  --color-teal-dark: #066A64;   /* hover for teal */
-  --color-forest-muted: #4A6664;/* secondary text (AA on mint/white) */
-  --color-amber-soft: #FCF1D7;  /* warning background */
-  --color-amber-ink: #7A5200;   /* text on amber-soft (AA) */
-  --color-danger: #B42318;      /* rejected / critical / dispute */
-  --color-danger-soft: #FDECEA;
+  /* Ink */
+  --color-ink: #12201f;            /* headings, primary text */
+  --color-ink-soft: #4a5857;       /* secondary text (AA on paper and surface) */
+  --color-ink-faint: #667371;      /* tertiary text, captions (AA on paper) */
 
-  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  /* Lines */
+  --color-line: #e2ded3;           /* hairlines, dividers */
+  --color-line-strong: #cdc8ba;    /* input borders, hover borders */
 
-  --radius-card: 0.875rem;
-  --shadow-card: 0 1px 2px rgb(23 59 58 / 0.05), 0 1px 3px rgb(23 59 58 / 0.06);
+  /* Brand */
+  --color-brand: #0b5d59;          /* primary actions, links */
+  --color-brand-deep: #08403d;     /* hover, dark panels */
+  --color-brand-soft: #3f8c86;     /* decorative accents */
+  --color-brand-tint: #e4eeeb;     /* selected / informational wash */
+
+  /* Accent */
+  --color-brass: #b08430;          /* decorative accent (not for small text) */
+  --color-brass-ink: #7a5714;      /* text on brass-tint (AA) */
+  --color-brass-tint: #f4ecd8;     /* caution wash */
+
+  /* Semantic */
+  --color-danger: #a32d22;
+  --color-danger-tint: #f8e8e4;
+
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: var(--font-display), ui-serif, Georgia, "Times New Roman", serif;
+
+  --radius-card: 0.5rem;
+  --shadow-card: 0 1px 0 rgb(18 32 31 / 0.03);
+  --shadow-float: 0 12px 32px -12px rgb(18 32 31 / 0.22), 0 2px 6px rgb(18 32 31 / 0.06);
 }
 
 @layer base {
   html {
-    background: var(--color-mint);
-    color: var(--color-forest);
+    background: var(--color-paper);
+    color: var(--color-ink);
     font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   body { min-height: 100vh; }
-  h1, h2, h3, h4 { color: var(--color-forest); font-weight: 700; letter-spacing: -0.01em; }
-  a { color: var(--color-teal); }
-  :focus-visible { outline: 2px solid var(--color-turquoise); outline-offset: 2px; border-radius: 4px; }
-  ::selection { background: var(--color-pale); }
+
+  h1, h2, h3, h4 {
+    color: var(--color-ink);
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.012em;
+    line-height: 1.15;
+  }
+  a { color: var(--color-brand); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  a:hover { color: var(--color-brand-deep); }
+  strong { font-weight: 600; }
+  code { font-size: 0.85em; background: var(--color-sunken); padding: 0.1em 0.35em; border-radius: 3px; }
+
+  :focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; border-radius: 3px; }
+  ::selection { background: #cfe3de; color: var(--color-ink); }
 }
 
-/* Leaflet needs an explicit stacking context so popups stay under the sticky header. */
-.leaflet-container { font-family: var(--font-sans); z-index: 0; }
+@layer components {
+  /* Small caps-style label used above headings and inside data blocks. */
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+  /* Fine dot grid used as a quiet texture on dark panels. */
+  .texture-dots {
+    background-image: radial-gradient(rgb(255 255 255 / 0.09) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .texture-dots-light {
+    background-image: radial-gradient(rgb(18 32 31 / 0.08) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+}
+
+/* ---- Leaflet -------------------------------------------------------------------------------- */
+div.leaflet-container { font-family: var(--font-sans); z-index: 0; background: var(--color-sunken); }
+/* Mute the default OpenStreetMap palette so pins carry the colour. */
+.leaflet-tile-pane { filter: saturate(0.45) contrast(0.96) brightness(1.02) sepia(0.12); }
 .s2f-pin { background: transparent; border: none; }
+
+.leaflet-bar { border: 1px solid var(--color-line-strong) !important; box-shadow: none !important; border-radius: 6px !important; overflow: hidden; }
+.leaflet-bar a {
+  background: var(--color-surface) !important;
+  color: var(--color-ink) !important;
+  border-bottom-color: var(--color-line) !important;
+  width: 32px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+}
+.leaflet-bar a:hover { background: var(--color-sunken) !important; }
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: var(--shadow-float);
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  padding: 2px;
+}
+.leaflet-popup-content { margin: 12px 14px; font-size: 13px; line-height: 1.45; }
+.leaflet-popup-tip { background: var(--color-surface); box-shadow: none; }
+.leaflet-control-attribution {
+  background: rgb(253 252 249 / 0.85) !important;
+  color: var(--color-ink-faint) !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a { color: var(--color-ink-soft) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

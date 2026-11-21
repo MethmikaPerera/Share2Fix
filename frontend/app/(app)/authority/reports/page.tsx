@@ -6,7 +6,7 @@ import { ReportList } from '@/features/reports/ReportList';
 export default function AssignedReportsPage() {
   return (
     <>
-      <PageHeader title="Assigned reports" description="Filter by status, category and priority, then open a report to update its status or add evidence." />
+      <PageHeader eyebrow="Authority" title="Assigned reports" description="Filter by status, category and priority, then open a report to update its status or add evidence." />
       <ReportList
         endpoint="/reports/managed"
         showPriority

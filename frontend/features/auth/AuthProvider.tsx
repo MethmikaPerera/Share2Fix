@@ -1,10 +1,12 @@
 'use client';
 
 import {
+  GoogleAuthProvider,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updateProfile,
   type User,
@@ -21,6 +23,8 @@ interface AuthContextValue {
   configured: boolean;
   sessionError: string | null;
   login: (email: string, password: string) => Promise<void>;
+  /** Google popup sign-in. First-time Google users automatically get a CITIZEN profile (see loadProfile). */
+  loginWithGoogle: () => Promise<void>;
   register: (input: { fullName: string; email: string; password: string; phone: string }) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -84,6 +88,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async login(email, password) {
         setSessionError(null);
         await signInWithEmailAndPassword(auth, email, password);
+      },
+      async loginWithGoogle() {
+        setSessionError(null);
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        await signInWithPopup(auth, provider);
       },
       async register({ fullName, email, password, phone }) {
         setSessionError(null);

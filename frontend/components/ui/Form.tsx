@@ -1,7 +1,7 @@
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react';
 
 const control =
-  'w-full rounded-lg border border-line bg-white px-3 text-sm text-forest placeholder:text-forest-muted/70 focus:border-teal focus:outline-none focus:ring-2 focus:ring-turquoise/40 disabled:bg-mint disabled:text-forest-muted';
+  'w-full rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-faint transition-[border-color,box-shadow] duration-150 hover:border-ink-faint focus:border-brand focus:outline-none focus:ring-[3px] focus:ring-brand/15 disabled:cursor-not-allowed disabled:bg-sunken disabled:text-ink-faint';
 
 export function Field({
   label,
@@ -20,14 +20,14 @@ export function Field({
 }) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-forest">
+      <label htmlFor={htmlFor} className="mb-1.5 block text-[0.8125rem] font-semibold text-ink">
         {label}
         {required && <span className="text-danger"> *</span>}
       </label>
       {children}
-      {hint && !error && <p className="mt-1 text-xs text-forest-muted">{hint}</p>}
+      {hint && !error && <p className="mt-1.5 text-xs text-ink-faint">{hint}</p>}
       {error && (
-        <p role="alert" className="mt-1 text-xs font-medium text-danger">
+        <p role="alert" className="mt-1.5 text-xs font-medium text-danger">
           {error}
         </p>
       )}
@@ -40,7 +40,7 @@ export function Input({ className = '', ...rest }: InputHTMLAttributes<HTMLInput
 }
 
 export function Textarea({ className = '', ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={`${control} min-h-24 py-2 ${className}`} {...rest} />;
+  return <textarea className={`${control} min-h-24 py-2.5 leading-relaxed ${className}`} {...rest} />;
 }
 
 export function Select({ className = '', children, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {

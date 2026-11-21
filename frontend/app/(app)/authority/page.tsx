@@ -29,7 +29,7 @@ export default function AuthorityDashboard() {
   if (profile?.role === 'ADMIN') {
     return (
       <>
-        <PageHeader title="Authority workspace" description="You are signed in as an administrator. Use the admin dashboard for platform-wide tools." />
+        <PageHeader eyebrow="Authority" title="Authority workspace" description="You are signed in as an administrator. Use the admin dashboard for platform-wide tools." />
         <LinkButton href="/admin">Open admin dashboard</LinkButton>
       </>
     );
@@ -46,12 +46,13 @@ export default function AuthorityDashboard() {
   return (
     <>
       <PageHeader
+        eyebrow="Authority dashboard"
         title={profile?.authority?.name ?? 'Authority dashboard'}
         description="Reports routed to your authority, and how you are doing."
         action={<LinkButton href="/authority/reports">All assigned reports</LinkButton>}
       />
       {profile?.authority?.isDemoData && (
-        <div className="mb-4">
+        <div className="mb-6">
           <Alert tone="info">
             <span className="flex items-center gap-1.5">
               <Building2 className="h-4 w-4" aria-hidden /> This authority uses demonstration data.
@@ -59,12 +60,12 @@ export default function AuthorityDashboard() {
           </Alert>
         </div>
       )}
-      <div className="space-y-6">
+      <div className="space-y-8">
         {stats.loading ? <Spinner /> : stats.error ? <ErrorState message={stats.error} onRetry={stats.reload} /> : stats.data && <StatsPanel stats={stats.data} />}
 
         <Card>
-          <CardHeader title="New reports awaiting review" action={<Link href="/authority/reports" className="text-sm font-semibold">See all</Link>} />
-          <div className="p-5">
+          <CardHeader title="New reports awaiting review" action={<Link href="/authority/reports" className="text-sm font-semibold no-underline hover:underline">See all &rarr;</Link>} />
+          <div className="p-6">
             {queue.loading ? (
               <Spinner />
             ) : queue.error ? (
@@ -72,7 +73,7 @@ export default function AuthorityDashboard() {
             ) : (queue.data?.items.length ?? 0) === 0 ? (
               <EmptyState title="Inbox zero" description="No new reports are waiting for review." />
             ) : (
-              <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {queue.data!.items.map((r) => (
                   <li key={r.id}>
                     <ReportCard report={r} href={`/authority/reports/${r.id}`} />
