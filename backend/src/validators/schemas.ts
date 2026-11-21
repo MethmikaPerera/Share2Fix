@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AUTHORITY_TYPES, CATEGORIES, PRIORITIES, STATUSES, VERIFICATION_STATUSES } from '../types';
+import { AUTHORITY_TYPES, CATEGORIES, FLAG_REASONS, PRIORITIES, STATUSES, VERIFICATION_STATUSES } from '../types';
 import { isWithinSriLanka } from '../utils/geo';
 
 const id = z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/, 'Invalid id');
@@ -56,6 +56,7 @@ export const listReportsQuery = z.object({
   /** Admin only. Use "UNASSIGNED" to list reports without an authority. */
   authorityId: z.string().max(128).optional(),
   mine: boolString.optional(),
+  flagged: boolString.optional(),
   limit: z.coerce.number().int().min(1).max(50).default(12),
   cursor: id.optional(),
 });
@@ -92,6 +93,12 @@ export const verifyBody = z
     path: ['explanation'],
     message: 'Please explain why you dispute this resolution (at least 10 characters)',
   });
+
+export const flagReportBody = z.object({
+  reason: z.enum(FLAG_REASONS),
+  explanation: text(5, 500),
+});
+export type FlagReportBody = z.infer<typeof flagReportBody>;
 
 // ---------- Admin ----------
 export const adminCreateUserBody = z

@@ -41,4 +41,5 @@ export const COLLECTIONS = {
   verifications: 'resolution_verifications',
   supports: 'supports',
   notifications: 'notifications',
+  flags: 'report_flags',
 } as const;

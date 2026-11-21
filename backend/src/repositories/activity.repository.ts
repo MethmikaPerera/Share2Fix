@@ -1,6 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { COLLECTIONS, db } from '../config/firebase';
-import type { CommentDoc, NotificationDoc, TimelineDoc, VerificationDoc } from '../types';
+import type { CommentDoc, NotificationDoc, ReportFlagDoc, TimelineDoc, VerificationDoc } from '../types';
 
 const timelineCol = () => db.collection(COLLECTIONS.timeline);
 const commentsCol = () => db.collection(COLLECTIONS.comments);
@@ -8,6 +8,7 @@ const assignmentsCol = () => db.collection(COLLECTIONS.assignments);
 const verificationsCol = () => db.collection(COLLECTIONS.verifications);
 const supportsCol = () => db.collection(COLLECTIONS.supports);
 const notificationsCol = () => db.collection(COLLECTIONS.notifications);
+const flagsCol = () => db.collection(COLLECTIONS.flags);
 
 export const timelineRepo = {
   newRef: () => timelineCol().doc(),
@@ -44,6 +45,25 @@ export const supportsRepo = {
     if (!reportIds.length) return new Set();
     const snaps = await db.getAll(...reportIds.map((id) => supportsRepo.ref(id, uid)));
     return new Set(snaps.filter((s) => s.exists).map((s) => (s.data() as { reportId: string }).reportId));
+  },
+};
+
+export const flagsRepo = {
+  ref: (reportId: string, uid: string) => flagsCol().doc(`${reportId}_${uid}`),
+  async get(reportId: string, uid: string): Promise<ReportFlagDoc | null> {
+    const snap = await flagsRepo.ref(reportId, uid).get();
+    return snap.exists ? (snap.data() as ReportFlagDoc) : null;
+  },
+  async listByReport(reportId: string): Promise<ReportFlagDoc[]> {
+    const snap = await flagsCol().where('reportId', '==', reportId).orderBy('createdAt', 'desc').get();
+    return snap.docs.map((d) => d.data() as ReportFlagDoc);
+  },
+  async hasFlagged(reportId: string, uid: string): Promise<boolean> {
+    const snap = await flagsRepo.ref(reportId, uid).get();
+    return snap.exists;
+  },
+  async flagCount(reportId: string): Promise<number> {
+    return (await flagsCol().where('reportId', '==', reportId).count().get()).data().count;
   },
 };
 

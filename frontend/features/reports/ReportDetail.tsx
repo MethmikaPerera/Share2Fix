@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowLeft, Building2, CheckCircle2, MapPin, MessageSquare, Pencil, ShieldCheck, Sparkles, ThumbsDown, ThumbsUp, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Building2, CheckCircle2, Flag, MapPin, MessageSquare, Pencil, ShieldAlert, ShieldCheck, Sparkles, ThumbsDown, ThumbsUp, Trash2, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useMemo, useState, type FormEvent } from 'react';
 import { CategoryBadge, PriorityBadge, StatusBadge } from '@/components/ui/Badges';
 import { Button } from '@/components/ui/Button';
@@ -14,21 +15,79 @@ import { useAsync } from '@/hooks/useAsync';
 import { api, errorMessage } from '@/lib/api';
 import { CATEGORIES, PRIORITIES, ROLE_LABELS, labelOf } from '@/lib/constants';
 import { formatDate, timeAgo } from '@/lib/format';
-import type { Category, Comment, MapPin as Pin, Priority, Report, TimelineEvent } from '@/types';
+import type { Category, Comment, FlagReason, MapPin as Pin, Priority, Report, TimelineEvent } from '@/types';
 import { EvidenceGallery } from './EvidenceGallery';
 import { StaffPanel } from './StaffPanel';
 import { Timeline } from './Timeline';
 
 export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref: string; backLabel: string }) {
+  const router = useRouter();
   const { profile } = useAuth();
   const report = useAsync((s) => api.get<Report>(`/reports/${id}`, s), [id, profile?.uid]);
   const timeline = useAsync((s) => api.get<TimelineEvent[]>(`/reports/${id}/timeline`, s), [id]);
   const comments = useAsync((s) => api.get<Comment[]>(`/reports/${id}/comments`, s), [id, profile?.uid]);
 
+  const [flaggingOpen, setFlaggingOpen] = useState(false);
+  const [flagReason, setFlagReason] = useState<FlagReason>('FAKE_OR_STAGED');
+  const [flagExplanation, setFlagExplanation] = useState('');
+  const [flagBusy, setFlagBusy] = useState(false);
+  const [flagError, setFlagError] = useState<string | null>(null);
+  const [flagSuccess, setFlagSuccess] = useState(false);
+
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [dismissBusy, setDismissBusy] = useState(false);
+
   const reloadAll = () => {
     report.reload();
     timeline.reload();
+    comments.reload();
   };
+
+  async function submitFlag(e: FormEvent) {
+    e.preventDefault();
+    if (flagExplanation.trim().length < 5) {
+      setFlagError('Please add an explanation (at least 5 characters)');
+      return;
+    }
+    setFlagBusy(true);
+    setFlagError(null);
+    try {
+      await api.post(`/reports/${id}/flag`, { reason: flagReason, explanation: flagExplanation.trim() });
+      setFlagSuccess(true);
+      setFlaggingOpen(false);
+      reloadAll();
+    } catch (err) {
+      setFlagError(errorMessage(err));
+    } finally {
+      setFlagBusy(false);
+    }
+  }
+
+  async function onRemoveReport() {
+    if (!window.confirm('Are you sure you want to permanently remove this report? All evidence photos and records will be deleted.')) {
+      return;
+    }
+    setRemoveBusy(true);
+    try {
+      await api.delete(`/reports/${id}`);
+      router.push('/admin/reports');
+    } catch (err) {
+      alert(errorMessage(err));
+      setRemoveBusy(false);
+    }
+  }
+
+  async function onDismissFlags() {
+    setDismissBusy(true);
+    try {
+      await api.post(`/reports/${id}/dismiss-flags`, {});
+      reloadAll();
+    } catch (err) {
+      alert(errorMessage(err));
+    } finally {
+      setDismissBusy(false);
+    }
+  }
 
   const r = report.data;
   const pin: Pin[] = useMemo(
@@ -65,6 +124,24 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
+          {(r.isFlagged || (r.commentAnalysis && r.commentAnalysis.isDisputedOrFake)) && (
+            <Alert tone="warning" title="Community Moderation & Dispute Notice">
+              <div className="space-y-1 text-sm">
+                <p>
+                  This report has been flagged for review ({r.flagCount ?? 0} community flags).
+                  {r.commentAnalysis?.isDisputedOrFake && (
+                    <span> Comments indicate this issue may be fake, staged, or already resolved.</span>
+                  )}
+                </p>
+                {r.commentAnalysis?.disputeReason && (
+                  <p className="rounded border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-900 dark:text-amber-200">
+                    <strong>AI Comment Consensus:</strong> {r.commentAnalysis.disputeReason}
+                  </p>
+                )}
+              </div>
+            </Alert>
+          )}
+
           <Card className="overflow-hidden">
             <div className="p-5 sm:p-6">
               <div className="flex flex-wrap gap-1.5">
@@ -177,7 +254,7 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
             </div>
           </Card>
 
-          <CommentsCard reportId={r.id} state={comments} canComment={!!profile} />
+          <CommentsCard reportId={r.id} state={comments} canComment={!!profile} onCommentAdded={reloadAll} />
         </div>
 
         <aside className="space-y-4">
@@ -193,6 +270,100 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
               <MessageSquare className="h-4 w-4" aria-hidden /> {r.commentCount} comment{r.commentCount === 1 ? '' : 's'}
             </p>
           </Card>
+
+          {profile?.role === 'CITIZEN' && !r.viewer.isOwner && (
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold">Community Integrity</p>
+                  <p className="text-xs text-forest-muted">
+                    {r.flagCount ? `${r.flagCount} user flag${r.flagCount > 1 ? 's' : ''}` : 'No flags'}
+                  </p>
+                </div>
+                {r.viewer.hasFlagged || flagSuccess ? (
+                  <span className="flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                    <Flag className="h-3.5 w-3.5 text-amber-600" /> Flagged by you
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFlaggingOpen((o) => !o)}
+                    className="text-xs text-danger hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                  >
+                    <Flag className="h-3.5 w-3.5" /> Flag issue
+                  </Button>
+                )}
+              </div>
+
+              {flaggingOpen && (
+                <form onSubmit={submitFlag} className="mt-3 space-y-2 border-t border-line/60 pt-3">
+                  {flagError && <Alert tone="error">{flagError}</Alert>}
+                  <Field label="Flag Reason" htmlFor="flag-reason">
+                    <Select id="flag-reason" value={flagReason} onChange={(e) => setFlagReason(e.target.value as FlagReason)}>
+                      <option value="FAKE_OR_STAGED">Fake or Staged Photo</option>
+                      <option value="ALREADY_RESOLVED">Already Resolved</option>
+                      <option value="INCORRECT_LOCATION">Incorrect Location</option>
+                      <option value="NOT_A_CIVIC_ISSUE">Not a Civic Issue</option>
+                      <option value="SPAM_OR_DUPLICATE">Spam or Duplicate</option>
+                      <option value="INAPPROPRIATE_CONTENT">Inappropriate Content</option>
+                      <option value="OTHER">Other</option>
+                    </Select>
+                  </Field>
+                  <Field label="Explanation" htmlFor="flag-explanation">
+                    <Textarea
+                      id="flag-explanation"
+                      rows={2}
+                      maxLength={500}
+                      placeholder="Why should this post be reviewed?"
+                      value={flagExplanation}
+                      onChange={(e) => setFlagExplanation(e.target.value)}
+                    />
+                  </Field>
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm" variant="danger" loading={flagBusy}>
+                      Submit Flag
+                    </Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setFlaggingOpen(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </Card>
+          )}
+
+          {role === 'ADMIN' && (
+            <Card className="border-rose-300 bg-rose-50/40 p-4 dark:border-rose-900/40 dark:bg-rose-950/20">
+              <CardHeader title="Admin Moderation" icon={<ShieldAlert className="h-4 w-4 text-rose-600" />} />
+              <div className="space-y-3 pt-2 text-xs">
+                <div>
+                  <p className="font-semibold text-rose-950 dark:text-rose-200">
+                    Status: {r.isFlagged ? 'FLAGGED FOR MODERATION' : 'CLEAN'}
+                  </p>
+                  <p className="text-forest-muted">Community flags: {r.flagCount ?? 0}</p>
+                  {r.commentAnalysis && (
+                    <p className="mt-1 text-forest-muted">
+                      Comments Sentiment: <strong>{r.commentAnalysis.sentiment}</strong>{' '}
+                      {r.commentAnalysis.disputeReason ? `(${r.commentAnalysis.disputeReason})` : ''}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-2 pt-1">
+                  {r.isFlagged && (
+                    <Button type="button" size="sm" variant="secondary" loading={dismissBusy} onClick={onDismissFlags}>
+                      Dismiss Flags (Mark Genuine)
+                    </Button>
+                  )}
+                  <Button type="button" size="sm" variant="danger" loading={removeBusy} onClick={onRemoveReport}>
+                    <Trash2 className="h-3.5 w-3.5" /> Remove Report
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
 
           <Card>
             <CardHeader title="Responsible authority" icon={<Building2 className="h-4 w-4" />} />
@@ -455,10 +626,12 @@ function CommentsCard({
   reportId,
   state,
   canComment,
+  onCommentAdded,
 }: {
   reportId: string;
   state: { data?: Comment[]; error?: string; loading: boolean; reload: () => void };
   canComment: boolean;
+  onCommentAdded?: () => void;
 }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -473,6 +646,7 @@ function CommentsCard({
       await api.post(`/reports/${reportId}/comments`, { text: text.trim() });
       setText('');
       state.reload();
+      onCommentAdded?.();
     } catch (err) {
       setError(errorMessage(err));
     } finally {

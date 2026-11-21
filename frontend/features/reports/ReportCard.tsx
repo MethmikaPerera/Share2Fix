@@ -1,4 +1,4 @@
-import { ImageOff, MapPin, MessageSquare, ThumbsUp } from 'lucide-react';
+import { Flag, ImageOff, MapPin, MessageSquare, ThumbsUp } from 'lucide-react';
 import Link from 'next/link';
 import { CategoryBadge, PriorityBadge, StatusBadge } from '@/components/ui/Badges';
 import { timeAgo } from '@/lib/format';
@@ -29,6 +29,11 @@ export function ReportCard({ report, href }: { report: Report; href?: string }) 
         <div className="flex flex-wrap gap-1.5">
           <CategoryBadge category={report.category} />
           <PriorityBadge priority={report.priority} />
+          {report.isFlagged && (
+            <span className="inline-flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+              <Flag className="h-2.5 w-2.5" /> Flagged ({report.flagCount ?? 0})
+            </span>
+          )}
         </div>
         {report.location.address && (
           <p className="flex items-start gap-1 text-xs text-forest-muted">
