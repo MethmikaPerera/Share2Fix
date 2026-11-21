@@ -186,7 +186,7 @@ export const reportService = {
 
       const verificationNote =
         behavioral.riskLevel !== 'LOW'
-          ? ` (Placed under review: Trust score ${behavioral.trustScore}/100 with flags: ${behavioral.flags.join(', ')})`
+          ? ' (Placed under review: automated verification asked for a manual check.)' // details stay in behavioralCheck (staff-only); the timeline is public
           : '';
 
       timelineWrite(batch, {

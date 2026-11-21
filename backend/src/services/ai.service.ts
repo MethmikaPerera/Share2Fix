@@ -147,14 +147,25 @@ export const aiService = {
         text: `${PROMPT}\n\n<report>\nTitle: ${cleanText(input.title ?? '', 120)}\nDescription: ${cleanText(input.description, 2000)}\n</report>`,
       });
 
-      const response = await withTimeout(
-        client.models.generateContent({
-          model: env.GEMINI_MODEL,
-          contents: [{ role: 'user', parts }],
-          config: { responseMimeType: 'application/json', responseSchema, temperature: 0.2 },
-        }),
-        25_000,
-      );
+      const request = () =>
+        withTimeout(
+          client.models.generateContent({
+            model: env.GEMINI_MODEL,
+            contents: [{ role: 'user', parts }],
+            config: { responseMimeType: 'application/json', responseSchema, temperature: 0.2 },
+          }),
+          20_000,
+        );
+      // Gemini intermittently answers 503 ("high demand") / 429: retry once after a short pause.
+      let response;
+      try {
+        response = await request();
+      } catch (firstErr) {
+        const reason = classifyError(firstErr);
+        if (reason !== 'SERVICE_UNAVAILABLE' && reason !== 'RATE_LIMITED') throw firstErr;
+        await new Promise((r) => setTimeout(r, 1500));
+        response = await request();
+      }
 
       const parsed = outputSchema.parse(JSON.parse(response.text ?? ''));
       const verification = parsed.verification ?? {

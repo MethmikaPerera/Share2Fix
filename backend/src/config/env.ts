@@ -18,7 +18,7 @@ const schema = z.object({
   FIREBASE_SERVICE_ACCOUNT_JSON: optional,
 
   GEMINI_API_KEY: optional,
-  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash-lite'),
 
   R2_ACCOUNT_ID: required('R2_ACCOUNT_ID'),
   R2_ACCESS_KEY_ID: required('R2_ACCESS_KEY_ID'),

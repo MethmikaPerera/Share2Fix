@@ -29,13 +29,16 @@ export type UploadFolder = 'reports' | 'resolutions';
 
 export const storageService = {
   /** Validates and uploads images; returns public URLs. Rolls back already-uploaded files on failure. */
-  async uploadImages(files: Express.Multer.File[], folder: UploadFolder, ownerId: string): Promise<string[]> {
+  async uploadImages(files: Express.Multer.File[], folder: UploadFolder, _ownerId: string): Promise<string[]> {
+    // NOTE: the owner's uid is deliberately NOT part of the object key - image URLs are public and
+    // must not let anyone link photos to a Firebase account.
+    const month = new Date().toISOString().slice(0, 7);
     const prepared = files.map((f) => {
       const type = sniffImage(f.buffer);
       if (!type || type.mime !== f.mimetype) {
         throw AppError.badRequest(`"${f.originalname}" is not a valid JPEG, PNG or WebP image`, undefined, 'INVALID_FILE_TYPE');
       }
-      return { file: f, type, key: `${folder}/${ownerId}/${randomUUID()}.${type.ext}` };
+      return { file: f, type, key: `${folder}/${month}/${randomUUID()}.${type.ext}` };
     });
 
     const uploaded: string[] = [];

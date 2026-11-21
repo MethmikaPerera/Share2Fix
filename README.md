@@ -89,7 +89,7 @@ npm run dev:frontend        # http://localhost:3000   (second terminal)
 ### 3. Gemini API key
 
 Create a key in [Google AI Studio](https://aistudio.google.com/apikey) and set `GEMINI_API_KEY` in `backend/.env`.
-`GEMINI_MODEL` defaults to `gemini-2.5-flash`; change it if Google retires that model.
+`GEMINI_MODEL` defaults to `gemini-3.5-flash-lite` (fast; `gemini-2.5-flash` is no longer available to new API keys). Change it if Google retires that model.
 If the key is missing or Gemini is rate-limited or down, reports are still accepted using the citizen's category and a default priority.
 
 ### 4. Environment files

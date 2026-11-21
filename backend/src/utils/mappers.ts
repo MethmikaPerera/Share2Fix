@@ -45,7 +45,6 @@ export function toReportDto(r: ReportDoc, ctx: ReportViewerContext = {}) {
     assignedAuthority: r.assignedAuthorityId ? { id: r.assignedAuthorityId, name: r.assignedAuthorityName ?? '' } : null,
     routing: r.routing,
     aiAnalysis: r.aiAnalysis,
-    behavioralCheck: r.behavioralCheck ?? null,
     supportCount: r.supportCount,
     commentCount: r.commentCount,
     verification: r.verification,
@@ -60,7 +59,8 @@ export function toReportDto(r: ReportDoc, ctx: ReportViewerContext = {}) {
     createdAt: iso(r.createdAt),
     updatedAt: iso(r.updatedAt),
     resolvedAt: iso(r.resolvedAt),
-    ...(isStaff ? { reporter: { name: r.createdByName } } : {}),
+    // Reporter identity and the anti-abuse trust score are staff-only, never public.
+    ...(isStaff ? { reporter: { name: r.createdByName }, behavioralCheck: r.behavioralCheck ?? null } : {}),
     viewer: {
       isOwner: !!viewer && viewer.uid === r.createdBy,
       hasSupported: ctx.hasSupported ?? false,
