@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/*
+ * Share2Fix design tokens.
+ * Brand palette (exact values from the brand guide) + a few semantic tints derived from it.
+ * Use tokens (bg-mint, text-forest, ...) - never raw hex values - in components.
+ */
+@theme {
+  /* Brand palette */
+  --color-mint: #F5FAF9;        /* main background */
+  --color-teal: #087F78;        /* navigation, primary buttons */
+  --color-turquoise: #25BDB5;   /* icons, highlights (decorative; not for small text) */
+  --color-pale: #DDF4F0;        /* cards, secondary backgrounds */
+  --color-amber: #F2B84B;       /* hazard alerts, warnings */
+  --color-forest: #173B3A;      /* headings, primary text */
+  --color-line: #E2ECEA;        /* borders, dividers */
+  --color-white: #FFFFFF;       /* cards, forms, inputs */
+
+  /* Derived semantic tints */
+  --color-teal-dark: #066A64;   /* hover for teal */
+  --color-forest-muted: #4A6664;/* secondary text (AA on mint/white) */
+  --color-amber-soft: #FCF1D7;  /* warning background */
+  --color-amber-ink: #7A5200;   /* text on amber-soft (AA) */
+  --color-danger: #B42318;      /* rejected / critical / dispute */
+  --color-danger-soft: #FDECEA;
+
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+
+  --radius-card: 0.875rem;
+  --shadow-card: 0 1px 2px rgb(23 59 58 / 0.05), 0 1px 3px rgb(23 59 58 / 0.06);
+}
+
+@layer base {
+  html {
+    background: var(--color-mint);
+    color: var(--color-forest);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  body { min-height: 100vh; }
+  h1, h2, h3, h4 { color: var(--color-forest); font-weight: 700; letter-spacing: -0.01em; }
+  a { color: var(--color-teal); }
+  :focus-visible { outline: 2px solid var(--color-turquoise); outline-offset: 2px; border-radius: 4px; }
+  ::selection { background: var(--color-pale); }
+}
+
+/* Leaflet needs an explicit stacking context so popups stay under the sticky header. */
+.leaflet-container { font-family: var(--font-sans); z-index: 0; }
+.s2f-pin { background: transparent; border: none; }

@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Secrets - never commit
+.env
+.env.local
+.env.*.local
+!.env.example
+*-firebase-adminsdk-*.json
+serviceAccount*.json
+service-account*.json
+secrets/
+
+# Firebase local state
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+.DS_Store
+Thumbs.db

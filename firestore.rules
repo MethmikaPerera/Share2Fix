@@ -1,0 +1,133 @@
+rules_version = '2';
+
+// Share2Fix Firestore security rules.
+//
+// Architecture note: ALL sensitive writes (report creation, status changes, assignments,
+// verification, role changes, ...) go through the Express backend using the Firebase Admin SDK,
+// which bypasses these rules and enforces authorization itself. These rules are the second
+// line of defence for direct client access: deny by default, no client writes except a
+// whitelist of profile fields and notification "read" flags, and no direct public reads of
+// documents that contain personal data. Public report browsing uses the sanitised API.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function hasActiveProfile() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userDoc(request.auth.uid).isActive == true;
+    }
+
+    function isAdmin() {
+      return hasActiveProfile() && userDoc(request.auth.uid).role == 'ADMIN';
+    }
+
+    function isOfficerOf(authorityId) {
+      return hasActiveProfile()
+        && userDoc(request.auth.uid).role == 'AUTHORITY_OFFICER'
+        && authorityId != null
+        && userDoc(request.auth.uid).authorityId == authorityId;
+    }
+
+    function reportData(reportId) {
+      return get(/databases/$(database)/documents/reports/$(reportId)).data;
+    }
+
+    function canReadReportChildren(reportId) {
+      return hasActiveProfile()
+        && (isAdmin()
+          || reportData(reportId).createdBy == request.auth.uid
+          || isOfficerOf(reportData(reportId).assignedAuthorityId));
+    }
+
+    // ---------- users ----------
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // Profiles are created by the backend (role is forced to CITIZEN there).
+      allow create: if false;
+
+      // Owners may change ONLY these fields. role / authorityId / isActive / email are immutable from the client,
+      // so nobody can grant themselves administrator privileges.
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && resource.data.isActive == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'phone', 'profileImage', 'updatedAt'])
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() >= 2
+        && request.resource.data.fullName.size() <= 80
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() <= 20
+        && request.resource.data.profileImage is string;
+
+      allow delete: if false;
+    }
+
+    // ---------- authorities (directory) ----------
+    match /authorities/{authorityId} {
+      allow read: if hasActiveProfile();
+      allow write: if false; // managed through the admin API
+    }
+
+    // ---------- reports ----------
+    // Reports contain the reporter's uid/name, so they are not publicly readable via the client SDK.
+    match /reports/{reportId} {
+      allow read: if hasActiveProfile()
+        && (isAdmin()
+          || resource.data.createdBy == request.auth.uid
+          || isOfficerOf(resource.data.assignedAuthorityId));
+      allow write: if false; // status, assignment, counters: backend only
+    }
+
+    // ---------- report children ----------
+    match /report_timeline/{eventId} {
+      allow read: if canReadReportChildren(resource.data.reportId);
+      allow write: if false;
+    }
+
+    match /comments/{commentId} {
+      allow read: if canReadReportChildren(resource.data.reportId);
+      allow write: if false;
+    }
+
+    match /assignments/{assignmentId} {
+      allow read: if hasActiveProfile()
+        && (isAdmin() || isOfficerOf(reportData(resource.data.reportId).assignedAuthorityId));
+      allow write: if false;
+    }
+
+    match /resolution_verifications/{verificationId} {
+      allow read: if hasActiveProfile() && (isAdmin() || resource.data.citizenId == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /supports/{supportId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // ---------- notifications ----------
+    match /notifications/{notificationId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      // Owners may only flip the "read" flag.
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && request.resource.data.read is bool;
+      allow create, delete: if false;
+    }
+
+    // Everything else: denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
