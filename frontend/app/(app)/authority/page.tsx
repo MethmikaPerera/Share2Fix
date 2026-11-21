@@ -22,7 +22,7 @@ export default function AuthorityDashboard() {
     [authorityId],
   );
   const queue = useAsync(
-    (s) => (isOfficer && !authorityId ? Promise.resolve({ items: [] as Report[], nextCursor: null }) : api.list<Report>('/reports/managed?status=SUBMITTED&limit=6', s)),
+    (s) => (isOfficer && !authorityId ? Promise.resolve({ items: [] as Report[], nextCursor: null }) : api.list<Report>('/reports/managed?status=IN_PROGRESS&limit=6', s)),
     [authorityId],
   );
 
@@ -64,7 +64,7 @@ export default function AuthorityDashboard() {
         {stats.loading ? <Spinner /> : stats.error ? <ErrorState message={stats.error} onRetry={stats.reload} /> : stats.data && <StatsPanel stats={stats.data} />}
 
         <Card>
-          <CardHeader title="New reports awaiting review" action={<Link href="/authority/reports" className="text-sm font-semibold no-underline hover:underline">See all &rarr;</Link>} />
+          <CardHeader title="Reports in progress" action={<Link href="/authority/reports" className="text-sm font-semibold no-underline hover:underline">See all &rarr;</Link>} />
           <div className="p-6">
             {queue.loading ? (
               <Spinner />

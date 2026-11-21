@@ -145,15 +145,7 @@ export const reportService = {
           'DUPLICATE_IMAGE_DETECTED',
         );
       }
-      if (!behavioral.details.isCivicIssue && behavioral.details.imageAuthenticityScore < 0.35) {
-        const reason = aiAnalysis.imageVerification?.flagReason || 'The uploaded photo does not appear to show a civic or public infrastructure issue.';
-        throw AppError.badRequest(
-          `Image verification failed: ${reason} Reports require an authentic photo of a civic issue (e.g., road damage, waste, leaks).`,
-          undefined,
-          'INVALID_CIVIC_IMAGE',
-        );
-      }
-      if (behavioral.details.velocityCountLast5Min >= 4) {
+      if (behavioral.details.velocityCountLast5Min >= 8) {
         throw AppError.badRequest(
           'Behavioral verification flagged: Multiple reports submitted too quickly in a short window. Please wait a few minutes before submitting again.',
           undefined,
@@ -167,8 +159,8 @@ export const reportService = {
     const ref = reportsRepo.newRef();
     const aiOk = aiAnalysis.status === 'OK';
     const priority: Priority = aiOk && aiAnalysis.priority ? aiAnalysis.priority : 'MEDIUM';
-    // Reporting does not require approval; every report starts active as SUBMITTED
-    const initialStatus: Status = 'SUBMITTED';
+    // Reporting does not require admin approval; every report starts published and active as IN_PROGRESS
+    const initialStatus: Status = 'IN_PROGRESS';
 
     try {
       const batch = db.batch();
@@ -211,11 +203,6 @@ export const reportService = {
         updatedAt: FieldValue.serverTimestamp(),
       } satisfies Record<keyof ReportDoc, unknown>);
 
-      const verificationNote =
-        behavioral.riskLevel !== 'LOW'
-          ? ' (Placed under review: automated verification asked for a manual check.)' // details stay in behavioralCheck (staff-only); the timeline is public
-          : '';
-
       timelineWrite(batch, {
         reportId: ref.id,
         type: 'CREATED',
@@ -223,8 +210,8 @@ export const reportService = {
         newStatus: initialStatus,
         actor: { uid: user.uid, name: user.fullName, role: user.role },
         explanation: authority
-          ? `Report submitted and routed to ${authority.name} (suggested from coverage area).${verificationNote}`
-          : `Report submitted. No authority matched this location; awaiting manual assignment.${verificationNote}`,
+          ? `Report published and routed to ${authority.name}. Status set to In Progress.`
+          : `Report published. Status set to In Progress. Awaiting manual assignment.`,
       });
 
       if (authority) {
@@ -328,8 +315,14 @@ export const reportService = {
     return (await commentsRepo.listByReport(id)).map((c) => toCommentDto(c, viewer));
   },
 
-  async addComment(user: AuthUser, id: string, text: string) {
+  async addComment(
+    user: AuthUser,
+    id: string,
+    text: string,
+    flagOptions?: { flagAsFake?: boolean; flagReason?: FlagReason },
+  ) {
     const report = await requireReport(id);
+    const cleanedText = cleanText(text, 1000);
     const ref = commentsRepo.newRef();
     const batch = db.batch();
     batch.set(ref, {
@@ -338,26 +331,76 @@ export const reportService = {
       userId: user.uid,
       userName: user.fullName,
       userRole: user.role,
-      text: cleanText(text, 1000),
+      text: cleanedText,
       createdAt: FieldValue.serverTimestamp(),
     });
     batch.update(reportsRepo.ref(id), { commentCount: FieldValue.increment(1) });
     if (report.createdBy !== user.uid) {
       notifyWrite(batch, report.createdBy, id, 'COMMENT', `${user.fullName} commented on "${report.title}"`);
     }
+
+    // If commenter explicitly checked "flag this report as fake / invalid"
+    let explicitFlagged = false;
+    if (flagOptions?.flagAsFake && report.createdBy !== user.uid) {
+      const existing = await flagsRepo.get(id, user.uid);
+      if (!existing) {
+        const flagRef = flagsRepo.ref(id, user.uid);
+        const reason: FlagReason = flagOptions.flagReason ?? 'FAKE_OR_STAGED';
+        batch.set(flagRef, {
+          flagId: flagRef.id,
+          reportId: id,
+          userId: user.uid,
+          userName: user.fullName,
+          reason,
+          explanation: cleanedText,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        batch.update(reportsRepo.ref(id), {
+          flagCount: FieldValue.increment(1),
+          isFlagged: true,
+        });
+        explicitFlagged = true;
+      }
+    }
+
     await batch.commit();
 
-    // Dynamically analyze comment consensus using Gemini API
+    if (explicitFlagged) {
+      await alertAdmins(
+        id,
+        `[COMMUNITY REPORT ALERT] "${user.fullName}" flagged report "${report.title}" as fake/invalid while commenting.`,
+      );
+    }
+
+    // Dynamically analyze comment consensus & community dispute using Gemini + heuristic detection
     try {
       const allComments = await commentsRepo.listByReport(id, 20);
       const commentsText = allComments.map((c) => `${c.userName}: ${c.text}`);
+
+      const DISPUTE_KEYWORDS = [
+        'fake', 'scam', 'fraud', 'staged', 'fabricated', 'not real', 'not true',
+        'already fixed', 'already resolved', 'already repaired', 'fixed months ago', 'fixed already',
+        'wrong location', 'wrong place', 'not here', 'does not exist', "doesn't exist", 'no issue here',
+        'ai generated', 'photoshop', 'photoshopped', 'old photo', 'old picture', 'not recent',
+        'from the internet', 'google image', 'copied', 'duplicate', 'hoax', 'bogus', 'lie', 'lying',
+      ];
+
+      const lowerComment = cleanedText.toLowerCase();
+      const hasDisputeKeyword = DISPUTE_KEYWORDS.some((kw) => lowerComment.includes(kw));
+
       const analysis = await aiService.analyzeComments({
         reportTitle: report.title,
         reportDescription: report.description,
         comments: commentsText,
       });
 
-      if (analysis.isDisputedOrFake && analysis.disputeConfidence >= 0.6) {
+      const shouldDisputeFlag =
+        (analysis.isDisputedOrFake && analysis.disputeConfidence >= 0.5) ||
+        analysis.sentiment === 'DISPUTED_FAKE' ||
+        hasDisputeKeyword ||
+        explicitFlagged;
+
+      if (shouldDisputeFlag) {
         const prevBehavioral = report.behavioralCheck ?? {
           trustScore: 80,
           riskLevel: 'LOW',
@@ -373,16 +416,31 @@ export const reportService = {
         };
 
         const flags = [...prevBehavioral.flags];
-        const flagText = `COMMENTS_DISPUTE: Community comments allege issue is fake/invalid (${analysis.disputeReason})`;
+        const disputeReason =
+          analysis.disputeReason ||
+          (hasDisputeKeyword
+            ? `Commenters allege this issue is fake, staged, or invalid ("${cleanedText.slice(0, 100)}")`
+            : 'Community dispute / fake report claim detected');
+
+        const flagText = `COMMENTS_DISPUTE: Community comments allege issue is fake/invalid (${disputeReason})`;
         if (!flags.some((f) => f.startsWith('COMMENTS_DISPUTE'))) {
           flags.push(flagText);
         }
         const trustScore = Math.max(10, Math.min(100, prevBehavioral.trustScore - 30));
         const riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' = trustScore < 50 ? 'HIGH' : 'MEDIUM';
 
+        const updatedAnalysis = {
+          isDisputedOrFake: true,
+          disputeConfidence: Math.max(analysis.disputeConfidence || 0.85, 0.8),
+          disputeReason,
+          sentiment: 'DISPUTED_FAKE' as const,
+          fakeClaimCount: Math.max(1, (report.commentAnalysis?.fakeClaimCount ?? 0) + 1),
+          analyzedAt: new Date().toISOString(),
+        };
+
         await reportsRepo.ref(id).update({
           isFlagged: true,
-          commentAnalysis: analysis,
+          commentAnalysis: updatedAnalysis,
           behavioralCheck: {
             ...prevBehavioral,
             trustScore,
@@ -393,7 +451,7 @@ export const reportService = {
 
         await alertAdmins(
           id,
-          `[COMMUNITY DISPUTE ALERT] Comments allege report "${report.title}" may be fake/invalid: ${analysis.disputeReason}`,
+          `[COMMUNITY DISPUTE ALERT] Comments allege report "${report.title}" may be fake/invalid: ${disputeReason}`,
         );
 
         const tBatch = db.batch();
@@ -403,7 +461,7 @@ export const reportService = {
           previousStatus: report.status,
           newStatus: report.status,
           actor: { uid: 'SYSTEM', name: 'Gemini Integrity Check', role: 'SYSTEM' },
-          explanation: `Comments analysis flagged potential community dispute/fake claims: ${analysis.disputeReason}`,
+          explanation: `Comments analysis flagged potential community dispute/fake claims: ${disputeReason}`,
         });
         await tBatch.commit();
       } else if (report.commentAnalysis?.isDisputedOrFake && !analysis.isDisputedOrFake) {
@@ -438,7 +496,8 @@ export const reportService = {
     });
 
     const newFlagCount = (report.flagCount ?? 0) + 1;
-    const shouldFlag = newFlagCount >= 2;
+    // Any community report immediately flags the post for review
+    const shouldFlag = true;
 
     const prevBehavioral = report.behavioralCheck ?? {
       trustScore: 80,
@@ -454,26 +513,23 @@ export const reportService = {
       },
     };
 
-    let behavioralCheck = prevBehavioral;
-    if (shouldFlag) {
-      const flags = [...prevBehavioral.flags];
-      const flagText = `COMMUNITY_FLAGS: ${newFlagCount} citizens flagged this issue as ${input.reason}`;
-      if (!flags.some((f) => f.startsWith('COMMUNITY_FLAGS'))) {
-        flags.push(flagText);
-      }
-      const trustScore = Math.max(10, Math.min(100, prevBehavioral.trustScore - 25));
-      const riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' = trustScore < 50 ? 'HIGH' : 'MEDIUM';
-      behavioralCheck = {
-        ...prevBehavioral,
-        trustScore,
-        riskLevel,
-        flags,
-      };
+    const flags = [...prevBehavioral.flags];
+    const flagText = `COMMUNITY_FLAGS: Citizen flagged this issue as ${input.reason}: "${cleanText(input.explanation, 100)}"`;
+    if (!flags.some((f) => f.includes(input.reason))) {
+      flags.push(flagText);
     }
+    const trustScore = Math.max(10, Math.min(100, prevBehavioral.trustScore - 25));
+    const riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' = trustScore < 50 ? 'HIGH' : 'MEDIUM';
+    const behavioralCheck = {
+      ...prevBehavioral,
+      trustScore,
+      riskLevel,
+      flags,
+    };
 
     batch.update(reportsRepo.ref(id), {
       flagCount: FieldValue.increment(1),
-      isFlagged: shouldFlag || Boolean(report.isFlagged),
+      isFlagged: true,
       behavioralCheck,
     });
 
@@ -488,14 +544,12 @@ export const reportService = {
 
     await batch.commit();
 
-    if (shouldFlag) {
-      await alertAdmins(
-        id,
-        `[MODERATION ALERT] Report "${report.title}" has reached ${newFlagCount} community flags (${input.reason}). Please review.`,
-      );
-    }
+    await alertAdmins(
+      id,
+      `[MODERATION ALERT] Report "${report.title}" was flagged as fake/invalid by ${user.fullName} (${input.reason}). Please review.`,
+    );
 
-    return { flagged: true, flagCount: newFlagCount, isFlagged: shouldFlag };
+    return { flagged: true, flagCount: newFlagCount, isFlagged: true };
   },
 
   async remove(user: AuthUser, id: string) {
@@ -783,7 +837,7 @@ export const reportService = {
   async updateClassification(user: AuthUser, id: string, input: { category?: Category; priority?: Priority }) {
     const report = await requireReport(id);
     const isOwnerEditable =
-      report.createdBy === user.uid && (report.status === 'SUBMITTED' || report.status === 'UNDER_REVIEW');
+      report.createdBy === user.uid && (report.status === 'SUBMITTED' || report.status === 'UNDER_REVIEW' || report.status === 'IN_PROGRESS');
     if (!isOwnerEditable && !canManageReport(user, report)) {
       throw AppError.forbidden('You cannot change the classification of this report');
     }
