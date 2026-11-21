@@ -25,11 +25,11 @@ export function RequireAuth({ roles, children }: { roles?: Role[]; children: Rea
 
   if (roles && !roles.includes(profile.role)) {
     return (
-      <div className="mx-auto max-w-md rounded-card border border-line bg-white p-8 text-center shadow-card">
-        <ShieldAlert className="mx-auto mb-3 h-8 w-8 text-amber" aria-hidden />
-        <h1 className="text-xl">You don&apos;t have access to this page</h1>
-        <p className="mt-2 text-sm text-forest-muted">This area is restricted to a different account type.</p>
-        <div className="mt-5">
+      <div className="mx-auto mt-10 max-w-md rounded-card border border-line bg-surface p-10 text-center shadow-card">
+        <ShieldAlert className="mx-auto mb-5 h-7 w-7 text-brass" strokeWidth={1.5} aria-hidden />
+        <h1 className="text-[1.625rem]">You don&apos;t have access to this page</h1>
+        <p className="mt-3 text-sm leading-relaxed text-ink-soft">This area is restricted to a different account type.</p>
+        <div className="mt-7">
           <LinkButton href={homePathFor(profile.role)}>Go to my dashboard</LinkButton>
         </div>
       </div>

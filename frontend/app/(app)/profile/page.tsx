@@ -59,30 +59,30 @@ function ProfileForm() {
 
   return (
     <>
-      <PageHeader title="Your profile" />
-      <Card className="max-w-xl p-6">
-        <dl className="mb-5 grid grid-cols-2 gap-3 text-sm">
+      <PageHeader eyebrow="Account" title="Your profile" description="Manage how your name and contact details appear to the authorities handling your reports." />
+      <Card className="max-w-2xl p-7 sm:p-8">
+        <dl className="mb-7 grid grid-cols-2 gap-x-6 gap-y-5 border-b border-line pb-7 text-sm">
           <div>
-            <dt className="text-forest-muted">Email</dt>
+            <dt className="eyebrow mb-1">Email</dt>
             <dd className="font-medium">{profile.email}</dd>
           </div>
           <div>
-            <dt className="text-forest-muted">Account type</dt>
+            <dt className="eyebrow mb-1">Account type</dt>
             <dd className="font-medium">{ROLE_LABELS[profile.role]}</dd>
           </div>
           {profile.authority && (
             <div className="col-span-2">
-              <dt className="text-forest-muted">Authority</dt>
+              <dt className="eyebrow mb-1">Authority</dt>
               <dd className="font-medium">{profile.authority.name}</dd>
             </div>
           )}
           <div>
-            <dt className="text-forest-muted">Member since</dt>
+            <dt className="eyebrow mb-1">Member since</dt>
             <dd className="font-medium">{formatDate(profile.createdAt)}</dd>
           </div>
         </dl>
 
-        <form onSubmit={save} className="space-y-4" noValidate>
+        <form onSubmit={save} className="space-y-5" noValidate>
           {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
           <Field label="Full name" htmlFor="p-name" required>
             <Input id="p-name" value={fullName} minLength={2} maxLength={80} onChange={(e) => setFullName(e.target.value)} />

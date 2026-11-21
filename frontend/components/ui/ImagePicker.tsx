@@ -41,9 +41,9 @@ export function ImagePicker({
     <div>
       <label
         htmlFor={inputId}
-        className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg bg-white px-3 text-sm font-semibold text-forest ring-1 ring-inset ring-line hover:bg-pale"
+        className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md bg-surface px-3 text-[0.8125rem] font-medium text-ink ring-1 ring-inset ring-line-strong transition-colors hover:bg-sunken"
       >
-        <ImagePlus className="h-4 w-4 text-turquoise" aria-hidden /> {label}
+        <ImagePlus className="h-4 w-4 text-ink-faint" aria-hidden /> {label}
       </label>
       <input
         id={inputId}
@@ -57,20 +57,20 @@ export function ImagePicker({
         }}
       />
       {error && (
-        <p role="alert" className="mt-1 text-xs font-medium text-danger">
+        <p role="alert" className="mt-1.5 text-xs font-medium text-danger">
           {error}
         </p>
       )}
       {previews.length > 0 && (
-        <ul className="mt-2 flex flex-wrap gap-2">
+        <ul className="mt-3 flex flex-wrap gap-2.5">
           {previews.map((src, i) => (
             <li key={src} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={`Selected photo ${i + 1}`} className="h-16 w-16 rounded-lg border border-line object-cover" />
+              <img src={src} alt={`Selected photo ${i + 1}`} className="h-16 w-16 rounded-md border border-line object-cover" />
               <button
                 type="button"
                 onClick={() => onChange(files.filter((_, idx) => idx !== i))}
-                className="absolute -right-1.5 -top-1.5 rounded-full bg-forest p-0.5 text-white"
+                className="absolute -right-1.5 -top-1.5 rounded-full border border-surface bg-ink p-0.5 text-white transition-colors hover:bg-danger"
                 aria-label={`Remove photo ${i + 1}`}
               >
                 <X className="h-3 w-3" />

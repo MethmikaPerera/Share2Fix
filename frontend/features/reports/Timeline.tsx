@@ -39,27 +39,31 @@ function titleFor(e: TimelineEvent): string {
 }
 
 export function Timeline({ events }: { events: TimelineEvent[] }) {
-  if (events.length === 0) return <p className="text-sm text-forest-muted">No activity yet.</p>;
+  if (events.length === 0) return <p className="text-sm text-ink-faint">No activity yet.</p>;
   return (
-    <ol className="relative space-y-5 border-l-2 border-line pl-6">
-      {events.map((e) => (
-        <li key={e.id} className="relative">
-          <span
-            className={`absolute -left-[2.1rem] flex h-7 w-7 items-center justify-center rounded-full ring-4 ring-white ${
-              e.newStatus === 'RESOLVED' && e.type === 'STATUS_CHANGE' ? 'bg-teal text-white' : e.newStatus === 'REJECTED' && e.type === 'STATUS_CHANGE' ? 'bg-danger text-white' : 'bg-pale text-teal'
-            }`}
-          >
-            {iconFor(e)}
-          </span>
-          <p className="text-sm font-semibold">{titleFor(e)}</p>
-          <p className="text-xs text-forest-muted">
-            {formatDate(e.createdAt, true)} - {e.updatedByName}
-            {e.updatedByRole !== 'SYSTEM' && ` (${ROLE_LABELS[e.updatedByRole]})`}
-          </p>
-          {e.explanation && <p className="mt-1.5 whitespace-pre-line text-sm text-forest">{e.explanation}</p>}
-          {e.evidenceUrls.length > 0 && <EvidenceGallery urls={e.evidenceUrls} label="Evidence" />}
-        </li>
-      ))}
+    <ol className="relative ml-3.5 space-y-7 border-l border-line-strong pl-8">
+      {events.map((e) => {
+        const resolved = e.type === 'STATUS_CHANGE' && e.newStatus === 'RESOLVED';
+        const rejected = e.type === 'STATUS_CHANGE' && e.newStatus === 'REJECTED';
+        return (
+          <li key={e.id} className="relative">
+            <span
+              className={`absolute -left-[2.84rem] flex h-[1.625rem] w-[1.625rem] items-center justify-center rounded-full ring-[5px] ring-surface [&>svg]:h-3.5 [&>svg]:w-3.5 ${
+                resolved ? 'bg-brand text-white' : rejected ? 'bg-danger text-white' : 'border border-line-strong bg-surface text-ink-soft'
+              }`}
+            >
+              {iconFor(e)}
+            </span>
+            <p className="font-serif text-[1.0625rem] leading-snug">{titleFor(e)}</p>
+            <p className="mt-0.5 text-xs text-ink-faint">
+              {formatDate(e.createdAt, true)} &middot; {e.updatedByName}
+              {e.updatedByRole !== 'SYSTEM' && ` (${ROLE_LABELS[e.updatedByRole]})`}
+            </p>
+            {e.explanation && <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-soft">{e.explanation}</p>}
+            {e.evidenceUrls.length > 0 && <EvidenceGallery urls={e.evidenceUrls} label="Evidence" />}
+          </li>
+        );
+      })}
     </ol>
   );
 }

@@ -153,11 +153,11 @@ export function CreateReportForm() {
   if (created) return <SubmittedPanel report={created} onAnother={() => window.location.reload()} />;
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-[1.1fr_1fr]" noValidate>
-      <div className="space-y-6">
+    <form onSubmit={onSubmit} className="grid gap-8 lg:grid-cols-[1.1fr_1fr]" noValidate>
+      <div className="space-y-8">
         <Card>
           <CardHeader title="1. What's the problem?" />
-          <div className="space-y-4 p-5">
+          <div className="space-y-5 p-6">
             <Field label="Title" htmlFor="title" required error={errors.title}>
               <Input id="title" maxLength={120} placeholder="e.g. Large pothole near the bus stand" value={title} onChange={(e) => setTitle(e.target.value)} />
             </Field>
@@ -165,10 +165,10 @@ export function CreateReportForm() {
               <Textarea id="description" rows={5} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} />
             </Field>
 
-            <div className="rounded-lg border border-line bg-mint p-3">
+            <div className="rounded-md border border-line bg-paper p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="flex items-center gap-1.5 text-sm font-medium">
-                  <Sparkles className="h-4 w-4 text-turquoise" aria-hidden /> AI suggestion (optional)
+                <p className="flex items-center gap-2 text-sm font-semibold">
+                  <Sparkles className="h-4 w-4 text-brass" aria-hidden /> AI suggestion <span className="font-normal text-ink-faint">(optional)</span>
                 </p>
                 <Button type="button" size="sm" variant="secondary" onClick={suggestWithAi} loading={aiBusy}>
                   Suggest category &amp; priority
@@ -180,17 +180,17 @@ export function CreateReportForm() {
                   <div className="flex flex-wrap items-center gap-2">
                     <CategoryBadge category={ai.category} />
                     <PriorityBadge priority={ai.priority} />
-                    <span className="text-xs text-forest-muted">{Math.round(ai.confidence * 100)}% confidence</span>
+                    <span className="text-xs text-ink-soft">{Math.round(ai.confidence * 100)}% confidence</span>
                   </div>
                   <Button type="button" size="sm" variant="ghost" onClick={() => setCategory(ai.category!)}>
                     Use suggested category
                   </Button>
                   {ai.imageVerification && (
-                    <div className="mt-2 pt-2 border-t border-line/60">
+                    <div className="mt-3 border-t border-line pt-3">
                       {ai.imageVerification.flagged ? (
-                        <div className="rounded-md border border-amber-400/40 bg-amber-500/10 p-2.5 text-xs text-amber-900 dark:text-amber-200">
-                          <span className="font-semibold flex items-center gap-1">
-                            <TriangleAlert className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> Image Verification Notice:
+                        <div className="rounded-md border-l-[3px] border-brass bg-brass-tint p-3 text-xs text-brass-ink">
+                          <span className="flex items-center gap-1.5 font-semibold">
+                            <TriangleAlert className="h-3.5 w-3.5" /> Image verification notice
                           </span>
                           <p className="mt-0.5">
                             {ai.imageVerification.flagReason ||
@@ -198,18 +198,18 @@ export function CreateReportForm() {
                           </p>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-brand-deep">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
                           Photo verified: genuine civic infrastructure issue (Authenticity: {Math.round(ai.imageVerification.authenticityScore * 100)}%)
                         </div>
                       )}
                     </div>
                   )}
-                  <p className="text-xs text-forest-muted">AI suggestions are recommendations. You and the authority can correct them.</p>
+                  <p className="text-xs text-ink-soft">AI suggestions are recommendations. You and the authority can correct them.</p>
                 </div>
               )}
               {ai?.status === 'UNAVAILABLE' && (
-                <p className="mt-2 text-sm text-amber-ink">AI suggestions are unavailable right now. Please choose a category yourself - you can still submit.</p>
+                <p className="mt-2 text-sm text-brass-ink">AI suggestions are unavailable right now. Please choose a category yourself - you can still submit.</p>
               )}
             </div>
 
@@ -227,15 +227,15 @@ export function CreateReportForm() {
         </Card>
 
         <Card>
-          <CardHeader title="2. Add photographs" icon={<Camera className="h-4 w-4" />} />
-          <div className="p-5">
+          <CardHeader title="2. Add photographs" icon={<Camera />} />
+          <div className="p-6">
             <label
               htmlFor="photos"
-              className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-line bg-mint px-4 py-6 text-center text-sm hover:border-turquoise"
+              className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-md border border-dashed border-line-strong bg-paper px-4 py-9 text-center text-sm transition-colors hover:border-brand hover:bg-brand-tint/50"
             >
-              <Camera className="h-6 w-6 text-turquoise" aria-hidden />
-              <span className="font-medium">Tap to take or choose photos</span>
-              <span className="text-xs text-forest-muted">JPEG, PNG or WebP, up to 5 MB each, max {MAX_FILES}</span>
+              <Camera className="mb-1 h-6 w-6 text-ink-faint" strokeWidth={1.5} aria-hidden />
+              <span className="font-semibold">Tap to take or choose photos</span>
+              <span className="text-xs text-ink-faint">JPEG, PNG or WebP, up to 5 MB each, max {MAX_FILES}</span>
             </label>
             <input
               id="photos"
@@ -259,11 +259,11 @@ export function CreateReportForm() {
                 {previews.map((src, i) => (
                   <li key={src} className="relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt={`Selected photo ${i + 1}`} className="h-24 w-24 rounded-lg border border-line object-cover" />
+                    <img src={src} alt={`Selected photo ${i + 1}`} className="h-24 w-24 rounded-md border border-line object-cover" />
                     <button
                       type="button"
                       onClick={() => setFiles((f) => f.filter((_, idx) => idx !== i))}
-                      className="absolute -right-2 -top-2 rounded-full bg-forest p-1 text-white shadow"
+                      className="absolute -right-2 -top-2 rounded-full border border-surface bg-ink p-1 text-white transition-colors hover:bg-danger"
                       aria-label={`Remove photo ${i + 1}`}
                     >
                       <X className="h-3 w-3" />
@@ -276,15 +276,15 @@ export function CreateReportForm() {
         </Card>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-8">
         <Card>
           <CardHeader title="3. Where is it?" />
-          <div className="space-y-3 p-5">
+          <div className="space-y-4 p-6">
             <div className="flex flex-wrap items-center gap-2">
               <Button type="button" variant="secondary" size="sm" onClick={useMyLocation} loading={gpsBusy} icon={<Crosshair className="h-4 w-4" />}>
                 Use my location
               </Button>
-              <span className="text-xs text-forest-muted">or click the map to drop a pin (drag to adjust)</span>
+              <span className="text-xs text-ink-faint">or click the map to drop a pin (drag to adjust)</span>
             </div>
             {gpsError && <Alert tone="warning">{gpsError}</Alert>}
             <LocationPicker value={coords} onChange={(lat, lng) => setCoords({ lat, lng })} />
@@ -294,7 +294,7 @@ export function CreateReportForm() {
               </p>
             )}
             {coords && (
-              <p className="text-xs text-forest-muted">
+              <p className="text-xs tabular-nums text-ink-faint">
                 Selected: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
               </p>
             )}
@@ -313,7 +313,7 @@ export function CreateReportForm() {
         <Button type="submit" size="lg" className="w-full" loading={submitting}>
           {submitting ? 'Submitting and analysing...' : 'Submit report'}
         </Button>
-        <p className="text-center text-xs text-forest-muted">
+        <p className="text-center text-xs leading-relaxed text-ink-faint">
           Your report will be public (without your name) so neighbours can support it. It is routed to the authority suggested for your location.
         </p>
       </div>
@@ -324,12 +324,12 @@ export function CreateReportForm() {
 function SubmittedPanel({ report, onAnother }: { report: Report; onAnother: () => void }) {
   const aiOk = report.aiAnalysis.status === 'OK';
   return (
-    <Card className="mx-auto max-w-2xl p-6 sm:p-8">
-      <div className="flex items-start gap-3">
-        <CheckCircle2 className="mt-1 h-7 w-7 shrink-0 text-teal" aria-hidden />
+    <Card className="mx-auto max-w-2xl p-7 sm:p-10">
+      <div className="flex items-start gap-4">
+        <CheckCircle2 className="mt-1.5 h-6 w-6 shrink-0 text-brand" strokeWidth={1.5} aria-hidden />
         <div>
-          <h2 className="text-2xl">Report submitted</h2>
-          <p className="mt-1 text-forest-muted">Thank you for helping your community. You can follow every update on the report timeline.</p>
+          <h2 className="text-[2rem]">Report submitted</h2>
+          <p className="mt-1 text-ink-soft">Thank you for helping your community. You can follow every update on the report timeline.</p>
         </div>
       </div>
 
@@ -341,13 +341,13 @@ function SubmittedPanel({ report, onAnother }: { report: Report; onAnother: () =
             <PriorityBadge priority={report.priority} />
           </dd>
         </div>
-        <div className="rounded-lg bg-pale p-3">
+        <div className="rounded-md border border-line bg-paper p-4">
           <dt className="font-semibold">Suggested authority</dt>
           <dd className="mt-0.5">
             {report.assignedAuthority ? (
               <>
                 {report.assignedAuthority.name}
-                <span className="mt-1 block text-xs text-forest-muted">{report.routing.note}</span>
+                <span className="mt-1 block text-xs text-ink-soft">{report.routing.note}</span>
               </>
             ) : (
               <span>No authority matched this location yet. An administrator will assign it manually.</span>
@@ -355,21 +355,19 @@ function SubmittedPanel({ report, onAnother }: { report: Report; onAnother: () =
           </dd>
         </div>
         {report.behavioralCheck && (
-          <div className="rounded-lg border border-line bg-mint p-3 text-sm">
-            <dt className="font-semibold flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-turquoise" /> Verification &amp; Behavioral Check
+          <div className="rounded-md border border-line bg-paper p-4 text-sm">
+            <dt className="flex items-center gap-1.5 font-semibold">
+              <ShieldCheck className="h-4 w-4 text-ink-faint" /> Verification &amp; behavioural check
             </dt>
             <dd className="mt-1.5 flex flex-wrap items-center gap-2">
               <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                  report.behavioralCheck.riskLevel === 'LOW'
-                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
-                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
+                className={`inline-flex items-center rounded-full border px-2.5 py-[3px] text-xs font-semibold ${
+                  report.behavioralCheck.riskLevel === 'LOW' ? 'border-brand/30 bg-brand-tint text-brand-deep' : 'border-brass/50 bg-brass-tint text-brass-ink'
                 }`}
               >
                 Trust score: {report.behavioralCheck.trustScore} / 100 • {report.behavioralCheck.riskLevel} RISK
               </span>
-              <span className="text-xs text-forest-muted">
+              <span className="text-xs text-ink-soft">
                 {report.behavioralCheck.details.isCivicIssue ? 'Civic photo confirmed' : 'Non-civic photo flag'} •{' '}
                 {report.behavioralCheck.details.isDuplicateImage ? 'Duplicate image flag' : 'Unique image verified'}
               </span>
@@ -379,10 +377,10 @@ function SubmittedPanel({ report, onAnother }: { report: Report; onAnother: () =
         {aiOk ? (
           <div>
             <dt className="font-semibold">AI analysis</dt>
-            <dd className="mt-0.5 text-forest-muted">
+            <dd className="mt-0.5 text-ink-soft">
               {report.aiAnalysis.summary}
               {report.aiAnalysis.category && report.aiAnalysis.category !== report.category && (
-                <span className="mt-1 block text-amber-ink">
+                <span className="mt-1 block text-brass-ink">
                   AI suggested a different category ({CATEGORIES.find((c) => c.value === report.aiAnalysis.category)?.label}). You can review it on the report page.
                 </span>
               )}

@@ -51,7 +51,9 @@ npm run dev:frontend        # http://localhost:3000   (second terminal)
 
 ### 1. Firebase (existing project)
 
-1. Firebase console -> **Build -> Authentication -> Sign-in method** -> enable **Email/Password**.
+1. Firebase console -> **Build -> Authentication -> Sign-in method** -> enable **Email/Password** and **Google**
+   (Google: pick a project support email and save). `localhost` is already an authorised domain; add your production domain under
+   *Authentication -> Settings -> Authorized domains*. First-time Google users automatically get a **CITIZEN** profile.
 2. **Build -> Firestore Database** -> *Create database* (production mode). Pick a region close to you (e.g. `asia-south1`).
 3. **Project settings -> General -> Your apps -> Web app (`</>`)** -> register an app and copy the config values into
    `frontend/.env.local` (copy from `frontend/.env.example`). These are public identifiers, not secrets.

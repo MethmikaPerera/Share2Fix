@@ -14,8 +14,8 @@ export default function AdminReportsPage() {
 
   return (
     <>
-      <PageHeader title="All reports" description="Every report on the platform. Open one to reassign it or update its status." />
-      <div className="mb-4 max-w-sm">
+      <PageHeader eyebrow="Administration" title="All reports" description="Every report on the platform. Open one to reassign it or update its status." />
+      <div className="mb-6 max-w-sm">
         <Select aria-label="Filter by authority" value={authorityId} onChange={(e) => setAuthorityId(e.target.value)}>
           <option value="">All authorities</option>
           <option value="UNASSIGNED">Unassigned</option>

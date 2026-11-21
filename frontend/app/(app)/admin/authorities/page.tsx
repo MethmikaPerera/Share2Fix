@@ -60,6 +60,7 @@ export default function AdminAuthoritiesPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Administration"
         title="Authorities"
         description="Configure which authority covers which area. Routing suggests the most specific matching coverage circle, so official jurisdiction data can replace this later."
         action={
@@ -89,33 +90,34 @@ export default function AdminAuthoritiesPage() {
       ) : (data?.length ?? 0) === 0 ? (
         <EmptyState title="No authorities configured" description="Run the seed script for demo data, or create one here." />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
           {data!.map((a) => (
-            <Card key={a.id} className={`p-5 ${a.isActive ? '' : 'opacity-70'}`}>
+            <Card key={a.id} className={`p-6 ${a.isActive ? '' : 'opacity-70'}`}>
               <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <span className="rounded-lg bg-pale p-2 text-teal">
-                    <Building2 className="h-5 w-5" aria-hidden />
-                  </span>
+                <div className="flex items-start gap-3.5">
+                  <Building2 className="mt-1 h-5 w-5 shrink-0 text-ink-faint" strokeWidth={1.5} aria-hidden />
                   <div>
-                    <h2 className="text-base">{a.name}</h2>
-                    <p className="text-xs text-forest-muted">{labelOf(AUTHORITY_TYPES, a.type)}</p>
+                    <h2 className="text-xl leading-snug">{a.name}</h2>
+                    <p className="mt-0.5 text-xs text-ink-faint">{labelOf(AUTHORITY_TYPES, a.type)}</p>
                   </div>
                 </div>
                 <Button size="sm" variant="secondary" onClick={() => setEditing({ id: a.id, state: fromAuthority(a) })}>
                   Edit
                 </Button>
               </div>
-              <dl className="mt-3 space-y-1 text-sm text-forest-muted">
+              <dl className="mt-5 space-y-1.5 border-t border-line pt-4 text-sm text-ink-soft">
                 <div>
                   Coverage: {a.coverage.radiusKm} km around {a.coverage.centerLatitude.toFixed(3)}, {a.coverage.centerLongitude.toFixed(3)}
                 </div>
                 <div>Handles: {a.handlesCategories.length ? a.handlesCategories.map((c) => labelOf(CATEGORIES, c)).join(', ') : 'All categories'}</div>
                 <div>Officers: {a.officerCount}</div>
               </dl>
-              <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold">
-                <span className={`rounded-full px-2.5 py-0.5 ${a.isActive ? 'bg-pale text-teal-dark' : 'bg-line text-forest-muted'}`}>{a.isActive ? 'Active' : 'Inactive'}</span>
-                {a.isDemoData && <span className="rounded-full bg-amber-soft px-2.5 py-0.5 text-amber-ink">Demo data</span>}
+              <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-[3px] ${a.isActive ? 'border-brand/30 bg-brand-tint text-brand-deep' : 'border-line bg-sunken text-ink-faint'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${a.isActive ? 'bg-brand' : 'bg-ink-faint'}`} aria-hidden />
+                  {a.isActive ? 'Active' : 'Inactive'}
+                </span>
+                {a.isDemoData && <span className="rounded-full border border-brass/50 bg-brass-tint px-2.5 py-[3px] text-brass-ink">Demo data</span>}
               </div>
             </Card>
           ))}
@@ -161,9 +163,9 @@ function AuthorityForm({ id, initial, onClose, onSaved }: { id: string | null; i
   }
 
   return (
-    <Card className="mb-6">
+    <Card className="mb-8">
       <CardHeader title={id ? 'Edit authority' : 'New authority'} />
-      <form onSubmit={submit} className="grid gap-4 p-5 sm:grid-cols-2" noValidate>
+      <form onSubmit={submit} className="grid gap-5 p-6 sm:grid-cols-2" noValidate>
         {error && (
           <div className="sm:col-span-2">
             <Alert tone="error">{error}</Alert>
@@ -194,14 +196,14 @@ function AuthorityForm({ id, initial, onClose, onSaved }: { id: string | null; i
           <Input id="a-desc" maxLength={300} value={f.description} onChange={(e) => set('description', e.target.value)} />
         </Field>
         <fieldset className="sm:col-span-2">
-          <legend className="mb-1 text-sm font-medium">Categories handled (none selected = all)</legend>
+          <legend className="mb-2 text-[0.8125rem] font-semibold">Categories handled (none selected = all)</legend>
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map((c) => {
               const on = f.categories.includes(c.value);
               return (
                 <label
                   key={c.value}
-                  className={`cursor-pointer rounded-full px-3 py-1 text-sm ring-1 ring-inset ${on ? 'bg-teal text-white ring-teal' : 'bg-white text-forest ring-line hover:bg-pale'}`}
+                  className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[0.8125rem] font-medium ring-1 ring-inset transition-colors focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand ${on ? 'bg-brand text-white ring-brand' : 'bg-surface text-ink-soft ring-line-strong hover:bg-sunken hover:text-ink'}`}
                 >
                   <input
                     type="checkbox"
@@ -224,8 +226,8 @@ function AuthorityForm({ id, initial, onClose, onSaved }: { id: string | null; i
         <Field label="Address" htmlFor="a-address">
           <Input id="a-address" value={f.address} onChange={(e) => set('address', e.target.value)} />
         </Field>
-        <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium">
-          <input type="checkbox" className="h-4 w-4 accent-teal" checked={f.isActive} onChange={(e) => set('isActive', e.target.checked)} />
+        <label className="flex items-center gap-2.5 self-end pb-2 text-sm font-medium">
+          <input type="checkbox" className="h-4 w-4 accent-brand" checked={f.isActive} onChange={(e) => set('isActive', e.target.checked)} />
           Active (receives new reports)
         </label>
         <div className="flex gap-3 sm:col-span-2">

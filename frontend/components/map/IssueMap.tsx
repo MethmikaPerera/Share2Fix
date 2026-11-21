@@ -63,7 +63,7 @@ export function IssueMap({ pins, onSelect, userLocation, height = '70vh', fit = 
         const color = STATUS_PIN_COLOR[pin.status];
         const icon = L.divIcon({
           className: 's2f-pin',
-          html: `<svg width="30" height="38" viewBox="0 0 30 38" aria-hidden="true"><path d="M15 1C7.8 1 2 6.8 2 14c0 9.6 13 23 13 23s13-13.4 13-23C28 6.8 22.2 1 15 1Z" fill="${color}" stroke="#fff" stroke-width="2"/><circle cx="15" cy="14" r="5" fill="#fff"/></svg>`,
+          html: `<svg width="30" height="38" viewBox="0 0 30 38" aria-hidden="true" style="filter:drop-shadow(0 2px 3px rgba(18,32,31,.28))"><path d="M15 1C7.8 1 2 6.8 2 14c0 9.6 13 23 13 23s13-13.4 13-23C28 6.8 22.2 1 15 1Z" fill="${color}" stroke="#fdfcf9" stroke-width="2"/><circle cx="15" cy="14" r="4.5" fill="#fdfcf9"/></svg>`,
           iconSize: [30, 38],
           iconAnchor: [15, 37],
           popupAnchor: [0, -32],
@@ -72,20 +72,26 @@ export function IssueMap({ pins, onSelect, userLocation, height = '70vh', fit = 
 
         // Build the popup with DOM nodes + textContent so user-provided titles can never inject HTML.
         const box = document.createElement('div');
-        box.style.minWidth = '170px';
+        box.style.minWidth = '190px';
+        const kicker = document.createElement('div');
+        kicker.textContent = labelOf(CATEGORIES, pin.category).toUpperCase();
+        kicker.style.cssText = 'font-size:10px;font-weight:600;letter-spacing:.12em;color:#667371;margin-bottom:5px';
         const h = document.createElement('strong');
         h.textContent = pin.title;
-        h.style.display = 'block';
-        h.style.color = '#173B3A';
+        h.style.cssText = "display:block;color:#12201f;font-family:var(--font-serif),Georgia,serif;font-weight:500;font-size:16px;line-height:1.25";
         const meta = document.createElement('div');
-        meta.style.cssText = 'font-size:12px;color:#4A6664;margin:4px 0 8px';
-        meta.textContent = `${labelOf(CATEGORIES, pin.category)} - ${labelOf(STATUSES, pin.status)}`;
+        meta.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;color:#4a5857;margin:8px 0 12px';
+        const dot = document.createElement('span');
+        dot.style.cssText = `width:7px;height:7px;border-radius:50%;background:${color};display:inline-block`;
+        const statusText = document.createElement('span');
+        statusText.textContent = labelOf(STATUSES, pin.status);
+        meta.append(dot, statusText);
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.textContent = 'View details';
-        btn.style.cssText = 'background:#087F78;color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:600;cursor:pointer';
+        btn.style.cssText = 'background:#0b5d59;color:#fff;border:0;border-radius:6px;padding:7px 14px;font-weight:500;font-size:13px;cursor:pointer;width:100%';
         btn.addEventListener('click', () => onSelectRef.current?.(pin.id));
-        box.append(h, meta, btn);
+        box.append(kicker, h, meta, btn);
         marker.bindPopup(box);
         marker.addTo(layer);
       }
@@ -111,9 +117,9 @@ export function IssueMap({ pins, onSelect, userLocation, height = '70vh', fit = 
       if (userLocation) {
         L.circleMarker([userLocation.lat, userLocation.lng], {
           radius: 8,
-          color: '#fff',
+          color: '#fdfcf9',
           weight: 3,
-          fillColor: '#25BDB5',
+          fillColor: '#b08430',
           fillOpacity: 1,
         })
           .bindTooltip('You are here')
@@ -127,7 +133,7 @@ export function IssueMap({ pins, onSelect, userLocation, height = '70vh', fit = 
     <div
       ref={containerRef}
       style={{ height }}
-      className="w-full overflow-hidden rounded-card border border-line"
+      className="w-full overflow-hidden rounded-card border border-line-strong"
       role="application"
       aria-label="Map of reported community issues"
     />

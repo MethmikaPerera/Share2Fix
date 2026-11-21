@@ -102,9 +102,9 @@ export function ReportList({
 
   return (
     <div>
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_repeat(3,1fr)]">
+      <div className="mb-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_repeat(3,1fr)]">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-forest-muted" aria-hidden />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
           <Input
             aria-label="Search loaded reports"
             placeholder="Search title, description or place"
@@ -151,7 +151,7 @@ export function ReportList({
         <EmptyState title={emptyTitle} description={search ? 'No loaded reports match your search.' : emptyDescription} action={emptyAction} />
       ) : (
         <>
-          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {visible.map((r) => (
               <li key={r.id}>
                 <ReportCard report={r} href={hrefFor?.(r)} />
@@ -159,7 +159,7 @@ export function ReportList({
             ))}
           </ul>
           {cursor && (
-            <div className="mt-6 text-center">
+            <div className="mt-10 text-center">
               <Button variant="secondary" onClick={loadMore} loading={loadingMore}>
                 Load more
               </Button>

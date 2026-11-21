@@ -4,7 +4,7 @@ import { CheckCircle2, ClipboardList, Hourglass, ShieldQuestion } from 'lucide-r
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { LinkButton } from '@/components/ui/Button';
-import { Card, CardHeader, PageHeader, StatCard } from '@/components/ui/Card';
+import { Card, CardHeader, PageHeader, StatCard, StatGrid } from '@/components/ui/Card';
 import { Alert, EmptyState, ErrorState, Spinner } from '@/components/ui/Feedback';
 import { homePathFor, useAuth } from '@/features/auth/AuthProvider';
 import { RequireAuth } from '@/features/auth/RequireAuth';
@@ -43,6 +43,7 @@ function CitizenDashboard({ name }: { name: string }) {
   return (
     <>
       <PageHeader
+        eyebrow="Citizen dashboard"
         title={`Hello, ${name.split(' ')[0]}`}
         description="Here's what's happening with the issues you've reported."
         action={<LinkButton href="/report/new">Report an issue</LinkButton>}
@@ -53,22 +54,17 @@ function CitizenDashboard({ name }: { name: string }) {
       ) : error ? (
         <ErrorState message={error} onRetry={reload} />
       ) : (
-        <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Reports submitted" value={items.length} icon={<ClipboardList className="h-4 w-4" />} />
-            <StatCard label="Open" value={open} icon={<Hourglass className="h-4 w-4" />} />
-            <StatCard label="Resolved" value={resolved} icon={<CheckCircle2 className="h-4 w-4" />} />
-            <StatCard
-              label="Awaiting your verification"
-              value={toVerify.length}
-              icon={<ShieldQuestion className="h-4 w-4" />}
-              tone={toVerify.length ? 'warn' : 'default'}
-            />
-          </div>
+        <div className="space-y-8">
+          <StatGrid>
+            <StatCard label="Reports submitted" value={items.length} icon={<ClipboardList />} />
+            <StatCard label="Open" value={open} icon={<Hourglass />} />
+            <StatCard label="Resolved" value={resolved} icon={<CheckCircle2 />} />
+            <StatCard label="Awaiting your verification" value={toVerify.length} icon={<ShieldQuestion />} tone={toVerify.length ? 'warn' : 'default'} />
+          </StatGrid>
 
           {toVerify.length > 0 && (
             <Alert tone="warning" title="Please verify these fixes">
-              <ul className="mt-1 list-disc pl-5">
+              <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
                 {toVerify.map((r) => (
                   <li key={r.id}>
                     <Link href={`/reports/${r.id}`}>{r.title}</Link> was marked resolved. Is it really fixed?
@@ -79,8 +75,8 @@ function CitizenDashboard({ name }: { name: string }) {
           )}
 
           <Card>
-            <CardHeader title="Recent reports" action={<Link href="/my-reports" className="text-sm font-semibold">View all</Link>} />
-            <div className="p-5">
+            <CardHeader title="Recent reports" action={<Link href="/my-reports" className="text-sm font-semibold no-underline hover:underline">View all &rarr;</Link>} />
+            <div className="p-6">
               {items.length === 0 ? (
                 <EmptyState
                   title="No reports yet"
@@ -88,7 +84,7 @@ function CitizenDashboard({ name }: { name: string }) {
                   action={<LinkButton href="/report/new">Report your first issue</LinkButton>}
                 />
               ) : (
-                <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <ul className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
                   {items.slice(0, 6).map((r) => (
                     <li key={r.id}>
                       <ReportCard report={r} />
