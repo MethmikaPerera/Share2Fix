@@ -33,4 +33,9 @@ export const usersRepo = {
   async count(): Promise<number> {
     return (await col().count().get()).data().count;
   },
+
+  async listAdmins(): Promise<UserDoc[]> {
+    const snap = await col().where('role', '==', 'ADMIN').where('isActive', '==', true).get();
+    return snap.docs.map((d) => d.data() as UserDoc);
+  },
 };

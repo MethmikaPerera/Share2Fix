@@ -66,4 +66,20 @@ export const reportController = {
   async reassign(req: Request, res: Response) {
     ok(res, await reportService.reassign(req.user!, res.locals.params.id, req.body.authorityId, req.body.reason));
   },
+
+  async flag(req: Request, res: Response) {
+    ok(res, await reportService.flagReport(req.user!, res.locals.params.id, req.body));
+  },
+
+  async remove(req: Request, res: Response) {
+    ok(res, await reportService.remove(req.user!, res.locals.params.id));
+  },
+
+  async dismissFlags(req: Request, res: Response) {
+    ok(res, await reportService.dismissFlags(req.user!, res.locals.params.id));
+  },
+
+  async listFlags(req: Request, res: Response) {
+    ok(res, await reportService.listFlags(req.user!, res.locals.params.id));
+  },
 };

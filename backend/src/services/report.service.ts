@@ -4,13 +4,15 @@ import { authoritiesRepo } from '../repositories/authorities.repository';
 import {
   assignmentsRepo,
   commentsRepo,
+  flagsRepo,
   notificationsRepo,
   supportsRepo,
   timelineRepo,
   verificationsRepo,
 } from '../repositories/activity.repository';
+import { usersRepo } from '../repositories/users.repository';
 import { reportsRepo, type ReportFilters } from '../repositories/reports.repository';
-import type { AuthUser, Category, Priority, ReportDoc, Status, TimelineType, VerificationStatus } from '../types';
+import { STATUSES, type AuthUser, type Category, type FlagReason, type Priority, type ReportDoc, type Status, type TimelineType, type VerificationStatus } from '../types';
 import { AppError } from '../utils/errors';
 import {
   canManageReport,
@@ -29,12 +31,12 @@ import { storageService } from './storage.service';
 
 /** Allowed status transitions. Verification by citizens never changes status (see verify()). */
 const TRANSITIONS: Record<Status, Status[]> = {
-  SUBMITTED: ['UNDER_REVIEW', 'ACCEPTED', 'REJECTED'],
-  UNDER_REVIEW: ['ACCEPTED', 'REJECTED'],
-  ACCEPTED: ['IN_PROGRESS', 'RESOLVED', 'REJECTED'],
-  IN_PROGRESS: ['RESOLVED', 'REJECTED'],
-  RESOLVED: ['IN_PROGRESS'], // re-open, e.g. after disputed verification
-  REJECTED: ['UNDER_REVIEW'], // reconsider
+  SUBMITTED: ['IN_PROGRESS', 'RESOLVED', 'ACCEPTED', 'UNDER_REVIEW', 'REJECTED'],
+  UNDER_REVIEW: ['IN_PROGRESS', 'RESOLVED', 'ACCEPTED', 'REJECTED'],
+  ACCEPTED: ['IN_PROGRESS', 'RESOLVED', 'UNDER_REVIEW', 'REJECTED'],
+  IN_PROGRESS: ['RESOLVED', 'ACCEPTED', 'UNDER_REVIEW', 'REJECTED'],
+  RESOLVED: ['IN_PROGRESS', 'UNDER_REVIEW'], // re-open, e.g. after disputed verification
+  REJECTED: ['SUBMITTED', 'UNDER_REVIEW', 'IN_PROGRESS'], // reconsider
 };
 
 const EXPLANATION_REQUIRED: Status[] = ['RESOLVED', 'REJECTED'];
@@ -73,11 +75,25 @@ function notifyWrite(
   tx: Writer,
   userId: string,
   reportId: string,
-  type: 'STATUS_CHANGE' | 'PROGRESS_UPDATE' | 'COMMENT' | 'RESOLUTION',
+  type: 'STATUS_CHANGE' | 'PROGRESS_UPDATE' | 'COMMENT' | 'RESOLUTION' | 'ADMIN_ALERT',
   message: string,
 ) {
   const ref = notificationsRepo.newRef();
   tx.set(ref, { notificationId: ref.id, userId, reportId, type, message, read: false, createdAt: FieldValue.serverTimestamp() });
+}
+
+async function alertAdmins(reportId: string, message: string) {
+  try {
+    const admins = await usersRepo.listAdmins();
+    if (!admins.length) return;
+    const batch = db.batch();
+    for (const a of admins) {
+      notifyWrite(batch, a.uid, reportId, 'ADMIN_ALERT', message);
+    }
+    await batch.commit();
+  } catch (err) {
+    console.warn('[report.service] alertAdmins failed', err);
+  }
 }
 
 async function requireReport(id: string): Promise<ReportDoc> {
@@ -151,7 +167,8 @@ export const reportService = {
     const ref = reportsRepo.newRef();
     const aiOk = aiAnalysis.status === 'OK';
     const priority: Priority = aiOk && aiAnalysis.priority ? aiAnalysis.priority : 'MEDIUM';
-    const initialStatus: Status = behavioral.riskLevel === 'LOW' ? 'SUBMITTED' : 'UNDER_REVIEW';
+    // Reporting does not require approval; every report starts active as SUBMITTED
+    const initialStatus: Status = 'SUBMITTED';
 
     try {
       const batch = db.batch();
@@ -166,7 +183,14 @@ export const reportService = {
         prioritySource: aiOk ? 'AI' : 'DEFAULT',
         imageUrls,
         imageHashes,
-        location: { latitude: input.latitude, longitude: input.longitude, address: cleanText(input.address, 300) },
+        location: {
+          latitude: input.latitude,
+          longitude: input.longitude,
+          address: cleanText(input.address, 300),
+          city: input.city ? cleanText(input.city, 80) : undefined,
+        },
+        targetCompany: input.targetCompany ? cleanText(input.targetCompany, 80) : null,
+        targetBranch: input.targetBranch ? cleanText(input.targetBranch, 80) : null,
         createdBy: user.uid,
         createdByName: user.fullName,
         assignedAuthorityId: authority?.authorityId ?? null,
@@ -176,6 +200,9 @@ export const reportService = {
         behavioralCheck: behavioral,
         supportCount: 0,
         commentCount: 0,
+        flagCount: 0,
+        isFlagged: false,
+        commentAnalysis: null,
         verification: { confirmed: 0, disputed: 0 },
         resolutionCycle: 0,
         resolution: null,
@@ -236,6 +263,8 @@ export const reportService = {
   // -------------------------------------------------------------------- read
   async list(viewer: AuthUser | undefined, q: ListReportsQuery, scope: 'public' | 'mine' | 'managed') {
     const filters: ReportFilters = { status: q.status, category: q.category, priority: q.priority };
+    if (q.flagged !== undefined) filters.isFlagged = q.flagged;
+    if (q.city) filters.city = q.city;
 
     if (scope === 'mine') {
       if (!viewer) throw AppError.unauthorized();
@@ -266,14 +295,16 @@ export const reportService = {
   async get(viewer: AuthUser | undefined, id: string) {
     const report = await requireReport(id);
     let hasSupported = false;
+    let hasFlagged = false;
     let myVerification: VerificationStatus | null = null;
     if (viewer) {
       hasSupported = (await supportsRepo.supportedIds(viewer.uid, [id])).has(id);
+      hasFlagged = await flagsRepo.hasFlagged(id, viewer.uid);
       if (report.status === 'RESOLVED') {
         myVerification = (await verificationsRepo.get(id, report.resolutionCycle, viewer.uid))?.status ?? null;
       }
     }
-    return toReportDto(report, { viewer, hasSupported, myVerification });
+    return toReportDto(report, { viewer, hasSupported, hasFlagged, myVerification });
   },
 
   async mapPins(q: MapQuery) {
@@ -315,8 +346,245 @@ export const reportService = {
       notifyWrite(batch, report.createdBy, id, 'COMMENT', `${user.fullName} commented on "${report.title}"`);
     }
     await batch.commit();
+
+    // Dynamically analyze comment consensus using Gemini API
+    try {
+      const allComments = await commentsRepo.listByReport(id, 20);
+      const commentsText = allComments.map((c) => `${c.userName}: ${c.text}`);
+      const analysis = await aiService.analyzeComments({
+        reportTitle: report.title,
+        reportDescription: report.description,
+        comments: commentsText,
+      });
+
+      if (analysis.isDisputedOrFake && analysis.disputeConfidence >= 0.6) {
+        const prevBehavioral = report.behavioralCheck ?? {
+          trustScore: 80,
+          riskLevel: 'LOW',
+          flags: [],
+          passed: true,
+          details: {
+            velocityCountLast5Min: 0,
+            isDuplicateImage: false,
+            imageAuthenticityScore: 0.8,
+            isCivicIssue: true,
+            matchesDescription: true,
+          },
+        };
+
+        const flags = [...prevBehavioral.flags];
+        const flagText = `COMMENTS_DISPUTE: Community comments allege issue is fake/invalid (${analysis.disputeReason})`;
+        if (!flags.some((f) => f.startsWith('COMMENTS_DISPUTE'))) {
+          flags.push(flagText);
+        }
+        const trustScore = Math.max(10, Math.min(100, prevBehavioral.trustScore - 30));
+        const riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' = trustScore < 50 ? 'HIGH' : 'MEDIUM';
+
+        await reportsRepo.ref(id).update({
+          isFlagged: true,
+          commentAnalysis: analysis,
+          behavioralCheck: {
+            ...prevBehavioral,
+            trustScore,
+            riskLevel,
+            flags,
+          },
+        });
+
+        await alertAdmins(
+          id,
+          `[COMMUNITY DISPUTE ALERT] Comments allege report "${report.title}" may be fake/invalid: ${analysis.disputeReason}`,
+        );
+
+        const tBatch = db.batch();
+        timelineWrite(tBatch, {
+          reportId: id,
+          type: 'STATUS_CHANGE',
+          previousStatus: report.status,
+          newStatus: report.status,
+          actor: { uid: 'SYSTEM', name: 'Gemini Integrity Check', role: 'SYSTEM' },
+          explanation: `Comments analysis flagged potential community dispute/fake claims: ${analysis.disputeReason}`,
+        });
+        await tBatch.commit();
+      } else if (report.commentAnalysis?.isDisputedOrFake && !analysis.isDisputedOrFake) {
+        await reportsRepo.ref(id).update({ commentAnalysis: analysis });
+      }
+    } catch (err) {
+      console.warn('[report.service] dynamic comment analysis error:', err);
+    }
+
     const saved = (await ref.get()).data()!;
     return toCommentDto(saved as never, user);
+  },
+
+  // ------------------------------------------------------------- flagging & moderation
+  async flagReport(user: AuthUser, id: string, input: { reason: FlagReason; explanation: string }) {
+    const report = await requireReport(id);
+    const existing = await flagsRepo.get(id, user.uid);
+    if (existing) {
+      throw AppError.badRequest('You have already flagged this issue');
+    }
+
+    const ref = flagsRepo.ref(id, user.uid);
+    const batch = db.batch();
+    batch.set(ref, {
+      flagId: ref.id,
+      reportId: id,
+      userId: user.uid,
+      userName: user.fullName,
+      reason: input.reason,
+      explanation: cleanText(input.explanation, 500),
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    const newFlagCount = (report.flagCount ?? 0) + 1;
+    const shouldFlag = newFlagCount >= 2;
+
+    const prevBehavioral = report.behavioralCheck ?? {
+      trustScore: 80,
+      riskLevel: 'LOW',
+      flags: [],
+      passed: true,
+      details: {
+        velocityCountLast5Min: 0,
+        isDuplicateImage: false,
+        imageAuthenticityScore: 0.8,
+        isCivicIssue: true,
+        matchesDescription: true,
+      },
+    };
+
+    let behavioralCheck = prevBehavioral;
+    if (shouldFlag) {
+      const flags = [...prevBehavioral.flags];
+      const flagText = `COMMUNITY_FLAGS: ${newFlagCount} citizens flagged this issue as ${input.reason}`;
+      if (!flags.some((f) => f.startsWith('COMMUNITY_FLAGS'))) {
+        flags.push(flagText);
+      }
+      const trustScore = Math.max(10, Math.min(100, prevBehavioral.trustScore - 25));
+      const riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' = trustScore < 50 ? 'HIGH' : 'MEDIUM';
+      behavioralCheck = {
+        ...prevBehavioral,
+        trustScore,
+        riskLevel,
+        flags,
+      };
+    }
+
+    batch.update(reportsRepo.ref(id), {
+      flagCount: FieldValue.increment(1),
+      isFlagged: shouldFlag || Boolean(report.isFlagged),
+      behavioralCheck,
+    });
+
+    timelineWrite(batch, {
+      reportId: id,
+      type: 'STATUS_CHANGE',
+      previousStatus: report.status,
+      newStatus: report.status,
+      actor: { uid: user.uid, name: user.fullName, role: user.role },
+      explanation: `Community member flagged issue (${input.reason}): "${cleanText(input.explanation, 200)}"`,
+    });
+
+    await batch.commit();
+
+    if (shouldFlag) {
+      await alertAdmins(
+        id,
+        `[MODERATION ALERT] Report "${report.title}" has reached ${newFlagCount} community flags (${input.reason}). Please review.`,
+      );
+    }
+
+    return { flagged: true, flagCount: newFlagCount, isFlagged: shouldFlag };
+  },
+
+  async remove(user: AuthUser, id: string) {
+    const report = await requireReport(id);
+    if (user.role !== 'ADMIN' && report.createdBy !== user.uid) {
+      throw AppError.forbidden('Only administrators or the report owner can remove reports');
+    }
+
+    if (report.imageUrls && report.imageUrls.length > 0) {
+      try {
+        await storageService.deleteByUrls(report.imageUrls);
+      } catch (err) {
+        console.warn('[report.service] failed to delete images on remove', err);
+      }
+    }
+
+    if (report.createdBy && user.role === 'ADMIN') {
+      try {
+        const notifRef = notificationsRepo.newRef();
+        await notifRef.set({
+          notificationId: notifRef.id,
+          userId: report.createdBy,
+          reportId: id,
+          type: 'STATUS_CHANGE',
+          message: `Your report "${report.title}" was removed by an administrator following moderation review.`,
+          read: false,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn('[report.service] notify reporter on delete failed', err);
+      }
+    }
+
+    await reportsRepo.ref(id).delete();
+    return { deleted: true, reportId: id };
+  },
+
+  async dismissFlags(user: AuthUser, id: string) {
+    if (user.role !== 'ADMIN') {
+      throw AppError.forbidden('Only administrators can dismiss flags');
+    }
+    const report = await requireReport(id);
+
+    const prevBehavioral = report.behavioralCheck;
+    let behavioralCheck = prevBehavioral;
+    if (prevBehavioral) {
+      const flags = prevBehavioral.flags.filter(
+        (f) => !f.startsWith('COMMUNITY_FLAGS') && !f.startsWith('COMMENTS_DISPUTE'),
+      );
+      const trustScore = Math.min(100, prevBehavioral.trustScore + 25);
+      const riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' = trustScore < 50 ? 'HIGH' : trustScore < 75 ? 'MEDIUM' : 'LOW';
+      behavioralCheck = { ...prevBehavioral, trustScore, riskLevel, flags };
+    }
+
+    const batch = db.batch();
+    batch.update(reportsRepo.ref(id), {
+      isFlagged: false,
+      flagCount: 0,
+      commentAnalysis: null,
+      behavioralCheck,
+    });
+
+    timelineWrite(batch, {
+      reportId: id,
+      type: 'STATUS_CHANGE',
+      previousStatus: report.status,
+      newStatus: report.status,
+      actor: { uid: user.uid, name: user.fullName, role: user.role },
+      explanation: 'Administrator reviewed report and dismissed community flags (verified genuine).',
+    });
+
+    await batch.commit();
+    return { dismissed: true, reportId: id };
+  },
+
+  async listFlags(user: AuthUser, id: string) {
+    if (user.role !== 'ADMIN') {
+      throw AppError.forbidden('Only administrators can view report flags');
+    }
+    await requireReport(id);
+    const flags = await flagsRepo.listByReport(id);
+    return flags.map((f) => ({
+      flagId: f.flagId,
+      reportId: f.reportId,
+      userName: f.userName,
+      reason: f.reason,
+      explanation: f.explanation,
+      createdAt: f.createdAt ? f.createdAt.toDate().toISOString() : null,
+    }));
   },
 
   // ----------------------------------------------------------------- support
@@ -351,26 +619,37 @@ export const reportService = {
     const precheck = await requireManageable(user, id);
     const explanation = cleanText(input.explanation, 1000);
 
-    if (!TRANSITIONS[precheck.status].includes(input.status)) {
+    const allowedTransitions = user.role === 'ADMIN' ? STATUSES : TRANSITIONS[precheck.status];
+    if (!allowedTransitions.includes(input.status)) {
       throw AppError.conflict(`Cannot change status from ${precheck.status} to ${input.status}`, 'INVALID_TRANSITION');
     }
-    if (EXPLANATION_REQUIRED.includes(input.status) && explanation.length < 10) {
-      throw AppError.unprocessable(
-        `An explanation (at least 10 characters) is required when marking a report ${statusLabel(input.status)}`,
-        undefined,
-        'EXPLANATION_REQUIRED',
-      );
+    if (user.role !== 'ADMIN') {
+      if (EXPLANATION_REQUIRED.includes(input.status) && explanation.length < 10) {
+        throw AppError.unprocessable(
+          `An explanation (at least 10 characters) is required when marking a report ${statusLabel(input.status)}`,
+          undefined,
+          'EXPLANATION_REQUIRED',
+        );
+      }
+      if (precheck.status === 'RESOLVED' && explanation.length < 10) {
+        throw AppError.unprocessable('Please explain why this resolved report is being re-opened', undefined, 'EXPLANATION_REQUIRED');
+      }
+      if (input.status === 'RESOLVED' && files.length === 0) {
+        throw AppError.unprocessable(
+          'Resolution evidence (at least one photograph) is required to mark a report as resolved',
+          undefined,
+          'EVIDENCE_REQUIRED',
+        );
+      }
     }
-    if (precheck.status === 'RESOLVED' && explanation.length < 10) {
-      throw AppError.unprocessable('Please explain why this resolved report is being re-opened', undefined, 'EXPLANATION_REQUIRED');
-    }
-    if (input.status === 'RESOLVED' && files.length === 0) {
-      throw AppError.unprocessable(
-        'Resolution evidence (at least one photograph) is required to mark a report as resolved',
-        undefined,
-        'EVIDENCE_REQUIRED',
-      );
-    }
+
+    const effectiveExplanation = explanation.length > 0
+      ? explanation
+      : input.status === 'RESOLVED'
+        ? 'Issue verified and marked as fixed by administration.'
+        : input.status === 'IN_PROGRESS'
+          ? 'Work marked as in progress by administration.'
+          : `Status changed to ${statusLabel(input.status)} by administration.`;
 
     const evidenceUrls = files.length ? await storageService.uploadImages(files, 'resolutions', user.uid) : [];
 
@@ -385,7 +664,7 @@ export const reportService = {
         const patch: Record<string, unknown> = { status: input.status, updatedAt: FieldValue.serverTimestamp() };
         if (input.status === 'RESOLVED') {
           patch.resolution = {
-            explanation,
+            explanation: effectiveExplanation,
             evidenceUrls,
             resolvedBy: user.fullName,
             resolvedAt: new Date(),
@@ -405,7 +684,7 @@ export const reportService = {
           previousStatus: report.status,
           newStatus: input.status,
           actor: staffActor(user),
-          explanation,
+          explanation: effectiveExplanation,
           evidenceUrls,
         });
 
@@ -415,8 +694,8 @@ export const reportService = {
           id,
           input.status === 'RESOLVED' ? 'RESOLUTION' : 'STATUS_CHANGE',
           input.status === 'RESOLVED'
-            ? `"${report.title}" was marked resolved. Please verify the fix.`
-            : `"${report.title}" is now ${statusLabel(input.status)}.`,
+            ? `"${report.title}" was marked resolved: ${effectiveExplanation}`
+            : `"${report.title}" is now ${statusLabel(input.status)}: ${effectiveExplanation}`,
         );
       });
     } catch (err) {

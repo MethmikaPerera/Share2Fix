@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type, type Part } from '@google/genai';
 import { z } from 'zod';
 import { env } from '../config/env';
-import { CATEGORIES, PRIORITIES, type AiAnalysis, type ImageVerification } from '../types';
+import { CATEGORIES, PRIORITIES, type AiAnalysis, type CommentSentimentAnalysis, type ImageVerification } from '../types';
 import { cleanText } from '../utils/text';
 
 /** Gemini is only ever called from this backend; the API key is never sent to the browser. */
@@ -127,6 +127,48 @@ export interface AnalyzeInput {
   image?: { buffer: Buffer; mimetype: string };
 }
 
+export interface CommentAnalysisInput {
+  reportTitle: string;
+  reportDescription: string;
+  comments: string[];
+}
+
+const commentOutputSchema = z.object({
+  isDisputedOrFake: z.boolean(),
+  disputeConfidence: z.number(),
+  disputeReason: z.string().default(''),
+  sentiment: z.enum(['SUPPORTIVE', 'NEUTRAL', 'CRITICAL', 'DISPUTED_FAKE']),
+  fakeClaimCount: z.number(),
+});
+
+const commentResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    isDisputedOrFake: {
+      type: Type.BOOLEAN,
+      description: 'True if comments allege or suggest that this report is fake, fabricated, staged, duplicate, already resolved, wrong location, or a joke/scam.',
+    },
+    disputeConfidence: {
+      type: Type.NUMBER,
+      description: 'Confidence between 0 and 1 that the comments allege the report is fake/invalid.',
+    },
+    disputeReason: {
+      type: Type.STRING,
+      description: 'Concise 1-2 sentence explanation of what commenters are alleging, or empty string.',
+    },
+    sentiment: {
+      type: Type.STRING,
+      enum: ['SUPPORTIVE', 'NEUTRAL', 'CRITICAL', 'DISPUTED_FAKE'],
+      description: 'Overall sentiment and stance of the community comments regarding the report.',
+    },
+    fakeClaimCount: {
+      type: Type.NUMBER,
+      description: 'Number of distinct comments claiming the report is fake or fraudulent.',
+    },
+  },
+  required: ['isDisputedOrFake', 'disputeConfidence', 'disputeReason', 'sentiment', 'fakeClaimCount'],
+};
+
 export const aiService = {
   isConfigured: Boolean(client),
 
@@ -196,6 +238,66 @@ export const aiService = {
       const reason = classifyError(err);
       console.warn(`[gemini] analysis unavailable (${reason})`, err instanceof Error ? err.message : err);
       return unavailable(reason);
+    }
+  },
+
+  /**
+   * Analyzes the discussion in the comments section with Gemini to detect if the
+   * community consensus indicates the report is fake, staged, already fixed, or a scam.
+   */
+  async analyzeComments(input: CommentAnalysisInput): Promise<CommentSentimentAnalysis> {
+    if (!client || input.comments.length === 0) {
+      return {
+        isDisputedOrFake: false,
+        disputeConfidence: 0,
+        disputeReason: '',
+        sentiment: 'NEUTRAL',
+        fakeClaimCount: 0,
+        analyzedAt: new Date().toISOString(),
+      };
+    }
+
+    try {
+      const commentList = input.comments.map((c, i) => `${i + 1}. ${cleanText(c, 500)}`).join('\n');
+      const prompt = `You are an AI community integrity analyzer for a civic reporting platform in Sri Lanka.
+Analyze the public comments below for a reported civic issue to determine if commenters are claiming this post is fake, fabricated, staged, duplicate, already resolved, at an incorrect location, or fraudulent.
+
+Report Title: ${cleanText(input.reportTitle, 120)}
+Report Description: ${cleanText(input.reportDescription, 500)}
+
+Public Comments:
+${commentList}
+
+Return structured JSON evaluating whether the report is disputed as fake, your confidence, the specific reasons commenters give, the sentiment, and the number of fake claims.`;
+
+      const response = await withTimeout(
+        client.models.generateContent({
+          model: env.GEMINI_MODEL,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: { responseMimeType: 'application/json', responseSchema: commentResponseSchema, temperature: 0.1 },
+        }),
+        20_000,
+      );
+
+      const parsed = commentOutputSchema.parse(JSON.parse(response.text ?? '{}'));
+      return {
+        isDisputedOrFake: Boolean(parsed.isDisputedOrFake),
+        disputeConfidence: Math.min(1, Math.max(0, parsed.disputeConfidence)),
+        disputeReason: cleanText(parsed.disputeReason, 300),
+        sentiment: parsed.sentiment,
+        fakeClaimCount: Math.max(0, parsed.fakeClaimCount),
+        analyzedAt: new Date().toISOString(),
+      };
+    } catch (err) {
+      console.warn('[gemini] comments analysis failed:', err instanceof Error ? err.message : err);
+      return {
+        isDisputedOrFake: false,
+        disputeConfidence: 0,
+        disputeReason: '',
+        sentiment: 'NEUTRAL',
+        fakeClaimCount: 0,
+        analyzedAt: new Date().toISOString(),
+      };
     }
   },
 };

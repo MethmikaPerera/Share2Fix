@@ -71,6 +71,20 @@ api.patch(
   reportController.updateClassification,
 );
 
+api.post(
+  '/reports/:id/flag',
+  authenticate,
+  requireRole('CITIZEN'),
+  writeLimiter,
+  withId,
+  validate({ body: v.flagReportBody }),
+  reportController.flag,
+);
+
+api.delete('/reports/:id', authenticate, withId, reportController.remove);
+api.post('/reports/:id/dismiss-flags', authenticate, requireAdmin, withId, reportController.dismissFlags);
+api.get('/reports/:id/flags', authenticate, requireAdmin, withId, reportController.listFlags);
+
 // Authority / admin operations (ownership of the report is re-checked in the service)
 api.post(
   '/reports/:id/status',

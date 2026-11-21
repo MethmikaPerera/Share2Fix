@@ -63,6 +63,36 @@ export interface AuthorityDoc {
   updatedAt: Timestamp;
 }
 
+export const FLAG_REASONS = [
+  'FAKE_OR_STAGED',
+  'ALREADY_RESOLVED',
+  'INCORRECT_LOCATION',
+  'NOT_A_CIVIC_ISSUE',
+  'SPAM_OR_DUPLICATE',
+  'INAPPROPRIATE_CONTENT',
+  'OTHER',
+] as const;
+export type FlagReason = (typeof FLAG_REASONS)[number];
+
+export interface ReportFlagDoc {
+  flagId: string;
+  reportId: string;
+  userId: string;
+  userName: string;
+  reason: FlagReason;
+  explanation: string;
+  createdAt: Timestamp;
+}
+
+export interface CommentSentimentAnalysis {
+  isDisputedOrFake: boolean;
+  disputeConfidence: number;
+  disputeReason: string;
+  sentiment: 'SUPPORTIVE' | 'NEUTRAL' | 'CRITICAL' | 'DISPUTED_FAKE';
+  fakeClaimCount: number;
+  analyzedAt: string | null;
+}
+
 export interface ImageVerification {
   isCivicIssue: boolean;
   matchesDescription: boolean;
@@ -110,7 +140,12 @@ export interface ReportDoc {
   imageUrls: string[];
   imageHashes?: string[];
   behavioralCheck?: BehavioralCheck;
-  location: { latitude: number; longitude: number; address: string };
+  flagCount?: number;
+  isFlagged?: boolean;
+  commentAnalysis?: CommentSentimentAnalysis | null;
+  location: { latitude: number; longitude: number; address: string; city?: string };
+  targetCompany?: string | null;
+  targetBranch?: string | null;
   createdBy: string;
   createdByName: string;
   assignedAuthorityId: string | null;
@@ -176,7 +211,7 @@ export interface NotificationDoc {
   notificationId: string;
   userId: string;
   reportId: string;
-  type: 'STATUS_CHANGE' | 'PROGRESS_UPDATE' | 'COMMENT' | 'RESOLUTION';
+  type: 'STATUS_CHANGE' | 'PROGRESS_UPDATE' | 'COMMENT' | 'RESOLUTION' | 'ADMIN_ALERT';
   message: string;
   read: boolean;
   createdAt: Timestamp;

@@ -21,6 +21,7 @@ export function canManageReport(user: AuthUser | undefined, report: ReportDoc): 
 export interface ReportViewerContext {
   viewer?: AuthUser;
   hasSupported?: boolean;
+  hasFlagged?: boolean;
   myVerification?: VerificationStatus | null;
 }
 
@@ -43,8 +44,13 @@ export function toReportDto(r: ReportDoc, ctx: ReportViewerContext = {}) {
     imageUrls: r.imageUrls,
     location: r.location,
     assignedAuthority: r.assignedAuthorityId ? { id: r.assignedAuthorityId, name: r.assignedAuthorityName ?? '' } : null,
+    targetCompany: r.targetCompany ?? null,
+    targetBranch: r.targetBranch ?? null,
     routing: r.routing,
     aiAnalysis: r.aiAnalysis,
+    flagCount: r.flagCount ?? 0,
+    isFlagged: Boolean(r.isFlagged),
+    commentAnalysis: r.commentAnalysis ?? null,
     supportCount: r.supportCount,
     commentCount: r.commentCount,
     verification: r.verification,
@@ -64,6 +70,7 @@ export function toReportDto(r: ReportDoc, ctx: ReportViewerContext = {}) {
     viewer: {
       isOwner: !!viewer && viewer.uid === r.createdBy,
       hasSupported: ctx.hasSupported ?? false,
+      hasFlagged: ctx.hasFlagged ?? false,
       canManage: canManageReport(viewer, r),
       myVerification: ctx.myVerification ?? null,
     },

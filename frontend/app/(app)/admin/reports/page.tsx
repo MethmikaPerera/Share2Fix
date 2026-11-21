@@ -10,23 +10,42 @@ import type { Authority } from '@/types';
 
 export default function AdminReportsPage() {
   const [authorityId, setAuthorityId] = useState('');
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
   const { data: authorities } = useAsync((s) => api.get<Authority[]>('/admin/authorities', s), []);
 
   return (
     <>
-      <PageHeader eyebrow="Administration" title="All reports" description="Every report on the platform. Open one to reassign it or update its status." />
-      <div className="mb-6 max-w-sm">
-        <Select aria-label="Filter by authority" value={authorityId} onChange={(e) => setAuthorityId(e.target.value)}>
-          <option value="">All authorities</option>
-          <option value="UNASSIGNED">Unassigned</option>
-          {(authorities ?? []).map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </Select>
+
+      <PageHeader title="All reports" description="Every report on the platform. Open one to reassign it or update its status." />
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="w-full max-w-sm sm:w-auto flex-1">
+          <Select aria-label="Filter by authority" value={authorityId} onChange={(e) => setAuthorityId(e.target.value)}>
+            <option value="">All authorities</option>
+            <option value="UNASSIGNED">Unassigned</option>
+            {(authorities ?? []).map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <label className="flex cursor-pointer select-none items-center gap-2 rounded-lg border border-line bg-mint px-3 py-2 text-xs font-semibold text-forest">
+          <input
+            type="checkbox"
+            checked={flaggedOnly}
+            onChange={(e) => setFlaggedOnly(e.target.checked)}
+            className="rounded border-line"
+          />
+          Show Flagged Reports Only
+        </label>
+
       </div>
-      <ReportList endpoint="/reports/managed" extraParams={{ authorityId: authorityId || undefined }} showPriority emptyTitle="No reports match" />
+      <ReportList
+        endpoint="/reports/managed"
+        extraParams={{ authorityId: authorityId || undefined, flagged: flaggedOnly ? 'true' : undefined }}
+        showPriority
+        emptyTitle="No reports match"
+      />
     </>
   );
 }

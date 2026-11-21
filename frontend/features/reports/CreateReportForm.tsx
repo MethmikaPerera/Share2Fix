@@ -10,7 +10,7 @@ import { Alert } from '@/components/ui/Feedback';
 import { Field, Input, Select, Textarea } from '@/components/ui/Form';
 import { LocationPicker } from '@/components/map/LocationPicker';
 import { ApiError, api, errorMessage } from '@/lib/api';
-import { CATEGORIES } from '@/lib/constants';
+import { CATEGORIES, SRI_LANKA_CITIES, TARGET_ORGANIZATIONS } from '@/lib/constants';
 import type { AiAnalysis, Category, Report } from '@/types';
 
 const MAX_FILES = 4;
@@ -25,6 +25,10 @@ export function CreateReportForm() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Category | ''>('');
   const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [customCity, setCustomCity] = useState('');
+  const [targetCompany, setTargetCompany] = useState('');
+  const [targetBranch, setTargetBranch] = useState('');
   const [coords, setCoords] = useState<Coords | null>(null);
   const [files, setFiles] = useState<File[]>([]);
 
@@ -86,6 +90,16 @@ export function CreateReportForm() {
       });
       const json = await res.json();
       if (json?.display_name) setAddress(String(json.display_name).slice(0, 300));
+      const detectedCity = json?.address?.city || json?.address?.town || json?.address?.municipality || json?.address?.suburb;
+      if (detectedCity && !city) {
+        const match = SRI_LANKA_CITIES.find((c) => c.toLowerCase() === String(detectedCity).toLowerCase());
+        if (match) {
+          setCity(match);
+        } else {
+          setCity('OTHER');
+          setCustomCity(String(detectedCity));
+        }
+      }
     } catch {
       /* optional convenience - ignore failures */
     } finally {
@@ -136,6 +150,10 @@ export function CreateReportForm() {
       form.set('latitude', String(coords.lat));
       form.set('longitude', String(coords.lng));
       form.set('address', address.trim());
+      const finalCity = city === 'OTHER' ? customCity.trim() : city.trim();
+      if (finalCity) form.set('city', finalCity);
+      if (targetCompany.trim()) form.set('targetCompany', targetCompany.trim());
+      if (targetBranch.trim()) form.set('targetBranch', targetBranch.trim());
       files.forEach((f) => form.append('images', f));
       setCreated(await api.postForm<Report>('/reports', form));
     } catch (e) {
@@ -306,6 +324,64 @@ export function CreateReportForm() {
                 </Button>
               </div>
             </Field>
+
+            <Field label="City / Region" htmlFor="city" hint="Choose the nearest city or district in Sri Lanka">
+              <Select id="city" value={city} onChange={(e) => setCity(e.target.value)}>
+                <option value="">Select a city...</option>
+                {SRI_LANKA_CITIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+                <option value="OTHER">Other city / town</option>
+              </Select>
+            </Field>
+
+            {city === 'OTHER' && (
+              <Field label="Specify City or Town Name" htmlFor="custom-city">
+                <Input
+                  id="custom-city"
+                  maxLength={80}
+                  placeholder="e.g. Maharagama, Wattala, Panadura"
+                  value={customCity}
+                  onChange={(e) => setCustomCity(e.target.value)}
+                />
+              </Field>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="4. Target Organization & Branch (Optional)" />
+          <div className="space-y-4 p-5">
+            <Field
+              label="Target Company / Organization"
+              htmlFor="target-company"
+              hint={targetCompany ? TARGET_ORGANIZATIONS.find((o) => o.value === targetCompany)?.hint : 'Select CEB, Water Board, RDA, Police or Local Council'}
+            >
+              <Select id="target-company" value={targetCompany} onChange={(e) => setTargetCompany(e.target.value)}>
+                <option value="">Select company or agency (optional)...</option>
+                {TARGET_ORGANIZATIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field
+              label="Branch, Depot, or Division"
+              htmlFor="target-branch"
+              hint="e.g. Kandy Area Branch, Dehiwala Sub-Office, Fort Station"
+            >
+              <Input
+                id="target-branch"
+                maxLength={80}
+                placeholder="e.g. Nugegoda Branch, Area Engineer Office"
+                value={targetBranch}
+                onChange={(e) => setTargetBranch(e.target.value)}
+              />
+            </Field>
           </div>
         </Card>
 
@@ -354,6 +430,20 @@ function SubmittedPanel({ report, onAnother }: { report: Report; onAnother: () =
             )}
           </dd>
         </div>
+        {(report.location.city || report.targetCompany) && (
+          <div className="rounded-lg border border-line bg-mint p-3 text-sm">
+            <dt className="font-semibold">Target Agency &amp; Location</dt>
+            <dd className="mt-1 text-xs text-forest-muted">
+              {report.targetCompany && (
+                <div className="font-medium text-forest">
+                  🏛️ Organization: {report.targetCompany}
+                  {report.targetBranch && ` (${report.targetBranch})`}
+                </div>
+              )}
+              {report.location.city && <div>📍 City / District: {report.location.city}</div>}
+            </dd>
+          </div>
+        )}
         {report.behavioralCheck && (
           <div className="rounded-md border border-line bg-paper p-4 text-sm">
             <dt className="flex items-center gap-1.5 font-semibold">

@@ -1,4 +1,4 @@
-import { ImageOff, MapPin, MessageSquare, ThumbsUp } from 'lucide-react';
+import { Flag, ImageOff, MapPin, MessageSquare, ThumbsUp } from 'lucide-react';
 import Link from 'next/link';
 import { PriorityBadge, StatusBadge } from '@/components/ui/Badges';
 import { CATEGORIES, labelOf } from '@/lib/constants';
@@ -34,6 +34,21 @@ export function ReportCard({ report, href }: { report: Report; href?: string }) 
         <div className="flex items-center justify-between gap-2">
           <p className="eyebrow truncate !tracking-[0.12em]">{labelOf(CATEGORIES, report.category)}</p>
           <PriorityBadge priority={report.priority} />
+          {report.location.city && (
+            <span className="inline-flex items-center rounded bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-700 dark:bg-stone-800 dark:text-stone-300">
+              📍 {report.location.city}
+            </span>
+          )}
+          {report.targetCompany && (
+            <span className="inline-flex items-center rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+              🏛️ {report.targetCompany}
+            </span>
+          )}
+          {report.isFlagged && (
+            <span className="inline-flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
+              <Flag className="h-2.5 w-2.5" /> Flagged ({report.flagCount ?? 0})
+            </span>
+          )}
         </div>
         <h3 className="mt-2 line-clamp-2 font-serif text-xl leading-snug transition-colors group-hover:text-brand">{report.title}</h3>
         {report.location.address && (

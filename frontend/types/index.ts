@@ -43,6 +43,35 @@ export interface Profile {
   createdAt: string | null;
 }
 
+export const FLAG_REASONS = [
+  'FAKE_OR_STAGED',
+  'ALREADY_RESOLVED',
+  'INCORRECT_LOCATION',
+  'NOT_A_CIVIC_ISSUE',
+  'SPAM_OR_DUPLICATE',
+  'INAPPROPRIATE_CONTENT',
+  'OTHER',
+] as const;
+export type FlagReason = (typeof FLAG_REASONS)[number];
+
+export interface ReportFlag {
+  flagId: string;
+  reportId: string;
+  userName: string;
+  reason: FlagReason;
+  explanation: string;
+  createdAt: string | null;
+}
+
+export interface CommentSentimentAnalysis {
+  isDisputedOrFake: boolean;
+  disputeConfidence: number;
+  disputeReason: string;
+  sentiment: 'SUPPORTIVE' | 'NEUTRAL' | 'CRITICAL' | 'DISPUTED_FAKE';
+  fakeClaimCount: number;
+  analyzedAt: string | null;
+}
+
 export interface ImageVerification {
   isCivicIssue: boolean;
   matchesDescription: boolean;
@@ -89,7 +118,12 @@ export interface Report {
   prioritySource: 'AI' | 'DEFAULT' | 'CITIZEN' | 'OFFICER';
   imageUrls: string[];
   behavioralCheck?: BehavioralCheck | null;
-  location: { latitude: number; longitude: number; address: string };
+  flagCount?: number;
+  isFlagged?: boolean;
+  commentAnalysis?: CommentSentimentAnalysis | null;
+  location: { latitude: number; longitude: number; address: string; city?: string };
+  targetCompany?: string | null;
+  targetBranch?: string | null;
   assignedAuthority: { id: string; name: string } | null;
   routing: { method: 'COVERAGE_MATCH' | 'NONE' | 'MANUAL'; suggested: boolean; note: string; isDemoData: boolean };
   aiAnalysis: AiAnalysis;
@@ -101,7 +135,13 @@ export interface Report {
   updatedAt: string | null;
   resolvedAt: string | null;
   reporter?: { name: string };
-  viewer: { isOwner: boolean; hasSupported: boolean; canManage: boolean; myVerification: VerificationStatus | null };
+  viewer: {
+    isOwner: boolean;
+    hasSupported: boolean;
+    hasFlagged?: boolean;
+    canManage: boolean;
+    myVerification: VerificationStatus | null;
+  };
 }
 
 export interface MapPin {
@@ -140,7 +180,7 @@ export interface Comment {
 export interface AppNotification {
   id: string;
   reportId: string;
-  type: 'STATUS_CHANGE' | 'PROGRESS_UPDATE' | 'COMMENT' | 'RESOLUTION';
+  type: 'STATUS_CHANGE' | 'PROGRESS_UPDATE' | 'COMMENT' | 'RESOLUTION' | 'ADMIN_ALERT';
   message: string;
   read: boolean;
   createdAt: string | null;
