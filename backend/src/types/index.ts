@@ -143,7 +143,9 @@ export interface ReportDoc {
   flagCount?: number;
   isFlagged?: boolean;
   commentAnalysis?: CommentSentimentAnalysis | null;
-  location: { latitude: number; longitude: number; address: string };
+  location: { latitude: number; longitude: number; address: string; city?: string };
+  targetCompany?: string | null;
+  targetBranch?: string | null;
   createdBy: string;
   createdByName: string;
   assignedAuthorityId: string | null;

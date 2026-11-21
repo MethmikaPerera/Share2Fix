@@ -78,4 +78,8 @@ export const reportController = {
   async dismissFlags(req: Request, res: Response) {
     ok(res, await reportService.dismissFlags(req.user!, res.locals.params.id));
   },
+
+  async listFlags(req: Request, res: Response) {
+    ok(res, await reportService.listFlags(req.user!, res.locals.params.id));
+  },
 };

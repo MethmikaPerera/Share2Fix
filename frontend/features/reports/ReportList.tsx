@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState, ErrorState, Spinner } from '@/components/ui/Feedback';
 import { Input, Select } from '@/components/ui/Form';
 import { api, errorMessage, qs } from '@/lib/api';
-import { CATEGORIES, PRIORITIES, STATUSES } from '@/lib/constants';
+import { CATEGORIES, PRIORITIES, SRI_LANKA_CITIES, STATUSES } from '@/lib/constants';
 import type { Category, Priority, Report, Status } from '@/types';
 import { ReportCard } from './ReportCard';
 
@@ -39,6 +39,7 @@ export function ReportList({
   const [status, setStatus] = useState<Status | ''>('');
   const [category, setCategory] = useState<Category | ''>('');
   const [priority, setPriority] = useState<Priority | ''>('');
+  const [city, setCity] = useState('');
   const [search, setSearch] = useState('');
 
   const [items, setItems] = useState<Report[]>([]);
@@ -56,10 +57,11 @@ export function ReportList({
         status,
         category: showCategory ? category : undefined,
         priority: showPriority ? priority : undefined,
+        city: city || undefined,
         limit: pageSize,
         cursor: after ?? undefined,
       }),
-    [extraKey, status, category, priority, showCategory, showPriority, pageSize],
+    [extraKey, status, category, priority, city, showCategory, showPriority, pageSize],
   );
 
   const loadFirst = useCallback(async () => {
@@ -97,7 +99,7 @@ export function ReportList({
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
-    return items.filter((r) => `${r.title} ${r.description} ${r.location.address}`.toLowerCase().includes(q));
+    return items.filter((r) => `${r.title} ${r.description} ${r.location.address} ${r.location.city ?? ''} ${r.targetCompany ?? ''}`.toLowerCase().includes(q));
   }, [items, search]);
 
   return (
@@ -118,6 +120,14 @@ export function ReportList({
           {STATUSES.map((s) => (
             <option key={s.value} value={s.value}>
               {s.label}
+            </option>
+          ))}
+        </Select>
+        <Select aria-label="Filter by location (city)" value={city} onChange={(e) => setCity(e.target.value)}>
+          <option value="">All cities</option>
+          {SRI_LANKA_CITIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
             </option>
           ))}
         </Select>

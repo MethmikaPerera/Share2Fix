@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Building2, CheckCircle2, Flag, MapPin, MessageSquare, Pencil, ShieldAlert, ShieldCheck, Sparkles, ThumbsDown, ThumbsUp, Trash2, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Building2, CheckCircle2, Flag, MapPin, MessageSquare, Pencil, ShieldAlert, ShieldCheck, Sparkles, ThumbsDown, ThumbsUp, Trash2, TriangleAlert, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type FormEvent } from 'react';
@@ -13,9 +13,9 @@ import { IssueMap } from '@/components/map/IssueMap';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useAsync } from '@/hooks/useAsync';
 import { api, errorMessage } from '@/lib/api';
-import { CATEGORIES, PRIORITIES, ROLE_LABELS, labelOf } from '@/lib/constants';
+import { CATEGORIES, FACEBOOK_FLAG_OPTIONS, PRIORITIES, ROLE_LABELS, labelOf } from '@/lib/constants';
 import { formatDate, timeAgo } from '@/lib/format';
-import type { Category, Comment, FlagReason, MapPin as Pin, Priority, Report, TimelineEvent } from '@/types';
+import type { Category, Comment, FlagReason, MapPin as Pin, Priority, Report, ReportFlag, TimelineEvent } from '@/types';
 import { EvidenceGallery } from './EvidenceGallery';
 import { StaffPanel } from './StaffPanel';
 import { Timeline } from './Timeline';
@@ -26,6 +26,10 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
   const report = useAsync((s) => api.get<Report>(`/reports/${id}`, s), [id, profile?.uid]);
   const timeline = useAsync((s) => api.get<TimelineEvent[]>(`/reports/${id}/timeline`, s), [id]);
   const comments = useAsync((s) => api.get<Comment[]>(`/reports/${id}/comments`, s), [id, profile?.uid]);
+  const flags = useAsync(
+    (s) => (profile?.role === 'ADMIN' ? api.get<ReportFlag[]>(`/reports/${id}/flags`, s) : Promise.resolve([])),
+    [id, profile?.role],
+  );
 
   const [flaggingOpen, setFlaggingOpen] = useState(false);
   const [flagReason, setFlagReason] = useState<FlagReason>('FAKE_OR_STAGED');
@@ -41,6 +45,7 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
     report.reload();
     timeline.reload();
     comments.reload();
+    flags.reload();
   };
 
   async function submitFlag(e: FormEvent) {
@@ -144,10 +149,20 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
 
           <Card className="overflow-hidden">
             <div className="p-5 sm:p-6">
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <StatusBadge status={r.status} />
                 <CategoryBadge category={r.category} />
                 <PriorityBadge priority={r.priority} />
+                {r.location.city && (
+                  <span className="inline-flex items-center rounded-md bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-700 dark:bg-stone-800 dark:text-stone-300">
+                    📍 {r.location.city}
+                  </span>
+                )}
+                {r.targetCompany && (
+                  <span className="inline-flex items-center rounded-md bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+                    🏛️ {r.targetCompany}{r.targetBranch ? ` • ${r.targetBranch}` : ''}
+                  </span>
+                )}
               </div>
               <h1 className="mt-3 text-2xl sm:text-3xl">{r.title}</h1>
               <p className="mt-1 text-sm text-forest-muted">
@@ -277,60 +292,32 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
                 <div>
                   <p className="text-sm font-semibold">Community Integrity</p>
                   <p className="text-xs text-forest-muted">
-                    {r.flagCount ? `${r.flagCount} user flag${r.flagCount > 1 ? 's' : ''}` : 'No flags'}
+                    {r.flagCount ? `${r.flagCount} user flag${r.flagCount > 1 ? 's' : ''}` : 'No flags submitted'}
                   </p>
                 </div>
                 {r.viewer.hasFlagged || flagSuccess ? (
-                  <span className="flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                  <span className="flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                     <Flag className="h-3.5 w-3.5 text-amber-600" /> Flagged by you
                   </span>
                 ) : (
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="secondary"
                     size="sm"
-                    onClick={() => setFlaggingOpen((o) => !o)}
+                    onClick={() => {
+                      setFlagExplanation('');
+                      setFlagError(null);
+                      setFlaggingOpen(true);
+                    }}
                     className="text-xs text-danger hover:bg-rose-50 dark:hover:bg-rose-950/30"
                   >
-                    <Flag className="h-3.5 w-3.5" /> Flag issue
+                    <Flag className="h-3.5 w-3.5" /> Report Post
                   </Button>
                 )}
               </div>
-
-              {flaggingOpen && (
-                <form onSubmit={submitFlag} className="mt-3 space-y-2 border-t border-line/60 pt-3">
-                  {flagError && <Alert tone="error">{flagError}</Alert>}
-                  <Field label="Flag Reason" htmlFor="flag-reason">
-                    <Select id="flag-reason" value={flagReason} onChange={(e) => setFlagReason(e.target.value as FlagReason)}>
-                      <option value="FAKE_OR_STAGED">Fake or Staged Photo</option>
-                      <option value="ALREADY_RESOLVED">Already Resolved</option>
-                      <option value="INCORRECT_LOCATION">Incorrect Location</option>
-                      <option value="NOT_A_CIVIC_ISSUE">Not a Civic Issue</option>
-                      <option value="SPAM_OR_DUPLICATE">Spam or Duplicate</option>
-                      <option value="INAPPROPRIATE_CONTENT">Inappropriate Content</option>
-                      <option value="OTHER">Other</option>
-                    </Select>
-                  </Field>
-                  <Field label="Explanation" htmlFor="flag-explanation">
-                    <Textarea
-                      id="flag-explanation"
-                      rows={2}
-                      maxLength={500}
-                      placeholder="Why should this post be reviewed?"
-                      value={flagExplanation}
-                      onChange={(e) => setFlagExplanation(e.target.value)}
-                    />
-                  </Field>
-                  <div className="flex gap-2">
-                    <Button type="submit" size="sm" variant="danger" loading={flagBusy}>
-                      Submit Flag
-                    </Button>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setFlaggingOpen(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              )}
+              <p className="mt-2 text-[11px] text-forest-muted">
+                Notice fake photos, duplicate issues, or already fixed problems? Report to alert moderators.
+              </p>
             </Card>
           )}
 
@@ -339,26 +326,63 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
               <CardHeader title="Admin Moderation" icon={<ShieldAlert className="h-4 w-4 text-rose-600" />} />
               <div className="space-y-3 pt-2 text-xs">
                 <div>
-                  <p className="font-semibold text-rose-950 dark:text-rose-200">
-                    Status: {r.isFlagged ? 'FLAGGED FOR MODERATION' : 'CLEAN'}
-                  </p>
-                  <p className="text-forest-muted">Community flags: {r.flagCount ?? 0}</p>
-                  {r.commentAnalysis && (
-                    <p className="mt-1 text-forest-muted">
-                      Comments Sentiment: <strong>{r.commentAnalysis.sentiment}</strong>{' '}
-                      {r.commentAnalysis.disputeReason ? `(${r.commentAnalysis.disputeReason})` : ''}
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-rose-950 dark:text-rose-200">
+                      Status: {r.isFlagged ? 'FLAGGED FOR REVIEW' : 'CLEAN'}
                     </p>
+                    <span className="rounded bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                      {r.flagCount ?? 0} flags
+                    </span>
+                  </div>
+                  {r.commentAnalysis && (
+                    <div className="mt-2 rounded border border-rose-200/80 bg-white/70 p-2 text-xs text-forest dark:border-rose-900/50 dark:bg-stone-900/70">
+                      <p className="font-semibold text-rose-900 dark:text-rose-300">
+                        AI Comment Sentiment: {r.commentAnalysis.sentiment}
+                      </p>
+                      {r.commentAnalysis.disputeReason && (
+                        <p className="mt-0.5 text-[11px] text-forest-muted">
+                          &ldquo;{r.commentAnalysis.disputeReason}&rdquo; ({r.commentAnalysis.fakeClaimCount} fake claims detected)
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
 
-                <div className="flex flex-col gap-2 pt-1">
+                {flags.data && flags.data.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <p className="font-semibold text-rose-950 dark:text-rose-200">
+                      Submitted Flags ({flags.data.length}):
+                    </p>
+                    <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
+                      {flags.data.map((fl) => (
+                        <div
+                          key={fl.flagId}
+                          className="rounded border border-rose-200 bg-white/90 p-2 text-[11px] text-forest dark:border-rose-900/50 dark:bg-stone-900/90"
+                        >
+                          <div className="flex items-center justify-between font-semibold">
+                            <span>{fl.userName}</span>
+                            <span className="text-[10px] text-forest-muted">
+                              {fl.createdAt ? timeAgo(fl.createdAt) : ''}
+                            </span>
+                          </div>
+                          <span className="mt-0.5 inline-block rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                            {FACEBOOK_FLAG_OPTIONS.find((o) => o.value === fl.reason)?.title || fl.reason}
+                          </span>
+                          <p className="mt-1 italic text-forest-muted">&ldquo;{fl.explanation}&rdquo;</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2 pt-2 border-t border-rose-200 dark:border-rose-900/40">
                   {r.isFlagged && (
                     <Button type="button" size="sm" variant="secondary" loading={dismissBusy} onClick={onDismissFlags}>
                       Dismiss Flags (Mark Genuine)
                     </Button>
                   )}
                   <Button type="button" size="sm" variant="danger" loading={removeBusy} onClick={onRemoveReport}>
-                    <Trash2 className="h-3.5 w-3.5" /> Remove Report
+                    <Trash2 className="h-3.5 w-3.5" /> Remove Report (Permanent)
                   </Button>
                 </div>
               </div>
@@ -388,6 +412,98 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
           )}
         </aside>
       </div>
+
+      {/* Facebook-style Report Post Modal */}
+      {flaggingOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="relative max-h-[90vh] w-full max-w-lg overflow-hidden rounded-2xl border border-line bg-card shadow-2xl">
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
+              <div>
+                <h2 className="text-lg font-bold text-forest">Report Post to Moderators</h2>
+                <p className="text-xs text-forest-muted">Help us protect community integrity by flagging fake or problematic posts</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFlaggingOpen(false)}
+                className="rounded-lg p-1 text-forest-muted hover:bg-pale hover:text-forest"
+                aria-label="Close dialog"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-140px)] overflow-y-auto px-5 py-4">
+              {flagError && (
+                <div className="mb-4">
+                  <Alert tone="error">{flagError}</Alert>
+                </div>
+              )}
+
+              <form id="flag-modal-form" onSubmit={submitFlag} className="space-y-4">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-forest-muted">
+                    Please select a reason
+                  </p>
+                  <div className="space-y-2">
+                    {FACEBOOK_FLAG_OPTIONS.map((opt) => {
+                      const selected = flagReason === opt.value;
+                      return (
+                        <label
+                          key={opt.value}
+                          className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
+                            selected
+                              ? 'border-danger/80 bg-rose-50/70 dark:bg-rose-950/25'
+                              : 'border-line hover:border-turquoise/50 hover:bg-pale/50'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="flagReason"
+                            value={opt.value}
+                            checked={selected}
+                            onChange={() => setFlagReason(opt.value)}
+                            className="mt-1 h-4 w-4 text-danger focus:ring-danger"
+                          />
+                          <div>
+                            <p className="text-sm font-semibold text-forest">{opt.title}</p>
+                            <p className="text-xs text-forest-muted">{opt.description}</p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <Field
+                  label="Additional Explanation"
+                  htmlFor="modal-flag-explanation"
+                  required
+                  error={flagError ?? undefined}
+                  hint="Provide context so our AI & admin team can verify (e.g. This road was repaired last week, or this photo is from another area)"
+                >
+                  <Textarea
+                    id="modal-flag-explanation"
+                    rows={3}
+                    maxLength={500}
+                    placeholder="Describe what is wrong or misleading about this post..."
+                    value={flagExplanation}
+                    onChange={(e) => setFlagExplanation(e.target.value)}
+                  />
+                </Field>
+              </form>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-line bg-pale/40 px-5 py-3">
+              <Button type="button" variant="secondary" onClick={() => setFlaggingOpen(false)}>
+                Cancel
+              </Button>
+              <Button form="flag-modal-form" type="submit" variant="danger" loading={flagBusy}>
+                Submit Report
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

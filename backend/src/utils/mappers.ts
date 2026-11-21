@@ -44,6 +44,8 @@ export function toReportDto(r: ReportDoc, ctx: ReportViewerContext = {}) {
     imageUrls: r.imageUrls,
     location: r.location,
     assignedAuthority: r.assignedAuthorityId ? { id: r.assignedAuthorityId, name: r.assignedAuthorityName ?? '' } : null,
+    targetCompany: r.targetCompany ?? null,
+    targetBranch: r.targetBranch ?? null,
     routing: r.routing,
     aiAnalysis: r.aiAnalysis,
     flagCount: r.flagCount ?? 0,

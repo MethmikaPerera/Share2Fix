@@ -36,6 +36,9 @@ export const createReportBody = z
     latitude: lat,
     longitude: lng,
     address: optionalText(300),
+    city: optionalText(80),
+    targetCompany: optionalText(80),
+    targetBranch: optionalText(80),
   })
   .refine((v) => isWithinSriLanka(v.latitude, v.longitude), {
     path: ['latitude'],
@@ -57,6 +60,7 @@ export const listReportsQuery = z.object({
   authorityId: z.string().max(128).optional(),
   mine: boolString.optional(),
   flagged: boolString.optional(),
+  city: z.string().trim().max(80).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(12),
   cursor: id.optional(),
 });

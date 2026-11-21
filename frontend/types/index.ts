@@ -54,6 +54,15 @@ export const FLAG_REASONS = [
 ] as const;
 export type FlagReason = (typeof FLAG_REASONS)[number];
 
+export interface ReportFlag {
+  flagId: string;
+  reportId: string;
+  userName: string;
+  reason: FlagReason;
+  explanation: string;
+  createdAt: string | null;
+}
+
 export interface CommentSentimentAnalysis {
   isDisputedOrFake: boolean;
   disputeConfidence: number;
@@ -112,7 +121,9 @@ export interface Report {
   flagCount?: number;
   isFlagged?: boolean;
   commentAnalysis?: CommentSentimentAnalysis | null;
-  location: { latitude: number; longitude: number; address: string };
+  location: { latitude: number; longitude: number; address: string; city?: string };
+  targetCompany?: string | null;
+  targetBranch?: string | null;
   assignedAuthority: { id: string; name: string } | null;
   routing: { method: 'COVERAGE_MATCH' | 'NONE' | 'MANUAL'; suggested: boolean; note: string; isDemoData: boolean };
   aiAnalysis: AiAnalysis;

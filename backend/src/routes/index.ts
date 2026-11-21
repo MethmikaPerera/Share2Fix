@@ -83,6 +83,7 @@ api.post(
 
 api.delete('/reports/:id', authenticate, withId, reportController.remove);
 api.post('/reports/:id/dismiss-flags', authenticate, requireAdmin, withId, reportController.dismissFlags);
+api.get('/reports/:id/flags', authenticate, requireAdmin, withId, reportController.listFlags);
 
 // Authority / admin operations (ownership of the report is re-checked in the service)
 api.post(

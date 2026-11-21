@@ -12,6 +12,7 @@ export interface ReportFilters {
   category?: Category;
   priority?: Priority;
   isFlagged?: boolean;
+  city?: string;
 }
 
 function applyFilters(base: Query, f: ReportFilters): Query {
@@ -22,6 +23,7 @@ function applyFilters(base: Query, f: ReportFilters): Query {
   if (f.category) q = q.where('category', '==', f.category);
   if (f.priority) q = q.where('priority', '==', f.priority);
   if (f.isFlagged !== undefined) q = q.where('isFlagged', '==', f.isFlagged);
+  if (f.city) q = q.where('location.city', '==', f.city);
   return q;
 }
 

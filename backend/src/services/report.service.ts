@@ -182,7 +182,14 @@ export const reportService = {
         prioritySource: aiOk ? 'AI' : 'DEFAULT',
         imageUrls,
         imageHashes,
-        location: { latitude: input.latitude, longitude: input.longitude, address: cleanText(input.address, 300) },
+        location: {
+          latitude: input.latitude,
+          longitude: input.longitude,
+          address: cleanText(input.address, 300),
+          city: input.city ? cleanText(input.city, 80) : undefined,
+        },
+        targetCompany: input.targetCompany ? cleanText(input.targetCompany, 80) : null,
+        targetBranch: input.targetBranch ? cleanText(input.targetBranch, 80) : null,
         createdBy: user.uid,
         createdByName: user.fullName,
         assignedAuthorityId: authority?.authorityId ?? null,
@@ -256,6 +263,7 @@ export const reportService = {
   async list(viewer: AuthUser | undefined, q: ListReportsQuery, scope: 'public' | 'mine' | 'managed') {
     const filters: ReportFilters = { status: q.status, category: q.category, priority: q.priority };
     if (q.flagged !== undefined) filters.isFlagged = q.flagged;
+    if (q.city) filters.city = q.city;
 
     if (scope === 'mine') {
       if (!viewer) throw AppError.unauthorized();
@@ -560,6 +568,22 @@ export const reportService = {
 
     await batch.commit();
     return { dismissed: true, reportId: id };
+  },
+
+  async listFlags(user: AuthUser, id: string) {
+    if (user.role !== 'ADMIN') {
+      throw AppError.forbidden('Only administrators can view report flags');
+    }
+    await requireReport(id);
+    const flags = await flagsRepo.listByReport(id);
+    return flags.map((f) => ({
+      flagId: f.flagId,
+      reportId: f.reportId,
+      userName: f.userName,
+      reason: f.reason,
+      explanation: f.explanation,
+      createdAt: f.createdAt ? f.createdAt.toDate().toISOString() : null,
+    }));
   },
 
   // ----------------------------------------------------------------- support
