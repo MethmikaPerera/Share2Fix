@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Form';
 import { ReportList } from '@/features/reports/ReportList';
@@ -12,6 +12,12 @@ export default function AdminReportsPage() {
   const [authorityId, setAuthorityId] = useState('');
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const { data: authorities } = useAsync((s) => api.get<Authority[]>('/admin/authorities', s), []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('flagged=true')) {
+      setFlaggedOnly(true);
+    }
+  }, []);
 
   return (
     <>
@@ -28,14 +34,23 @@ export default function AdminReportsPage() {
             ))}
           </Select>
         </div>
-        <label className="flex cursor-pointer select-none items-center gap-2 rounded-lg border border-line bg-mint px-3 py-2 text-xs font-semibold text-forest">
+        <label
+          className={`flex cursor-pointer select-none items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition ${
+            flaggedOnly
+              ? 'border-rose-400 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-200 shadow-sm'
+              : 'border-line bg-mint text-forest'
+          }`}
+        >
           <input
             type="checkbox"
             checked={flaggedOnly}
             onChange={(e) => setFlaggedOnly(e.target.checked)}
-            className="rounded border-line"
+            className="rounded border-rose-400 text-rose-600 focus:ring-rose-500"
           />
-          Show Flagged Reports Only
+          <span className="flex items-center gap-1.5">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-white font-black text-[10px]">!</span>
+            Show Flagged Reports Only
+          </span>
         </label>
       </div>
       <ReportList

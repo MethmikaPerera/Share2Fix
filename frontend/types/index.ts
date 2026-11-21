@@ -210,6 +210,7 @@ export interface Stats {
   users?: number;
   authorities?: number;
   activeAuthorities?: number;
+  flaggedReports?: number;
 }
 
 export interface PageResult<T> {

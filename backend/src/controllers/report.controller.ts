@@ -40,7 +40,13 @@ export const reportController = {
   },
 
   async addComment(req: Request, res: Response) {
-    created(res, await reportService.addComment(req.user!, res.locals.params.id, req.body.text));
+    created(
+      res,
+      await reportService.addComment(req.user!, res.locals.params.id, req.body.text, {
+        flagAsFake: req.body.flagAsFake,
+        flagReason: req.body.flagReason,
+      }),
+    );
   },
 
   async toggleSupport(req: Request, res: Response) {

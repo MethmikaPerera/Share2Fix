@@ -40,13 +40,21 @@ export const statsService = {
   },
 
   async platform() {
-    const [overall, unassigned, users, authorities] = await Promise.all([
+    const [overall, unassigned, users, authorities, flaggedReports] = await Promise.all([
       breakdown({}),
       reportsRepo.count({ assignedAuthorityId: null }),
       usersRepo.count(),
       authoritiesRepo.list(),
+      reportsRepo.count({ isFlagged: true }),
     ]);
-    return { ...overall, unassigned, users, authorities: authorities.length, activeAuthorities: authorities.filter((a) => a.isActive).length };
+    return {
+      ...overall,
+      unassigned,
+      users,
+      authorities: authorities.length,
+      activeAuthorities: authorities.filter((a) => a.isActive).length,
+      flaggedReports,
+    };
   },
 
   /** Landing-page counters. Cached for a minute. */

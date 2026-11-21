@@ -3,7 +3,7 @@
 import { ArrowLeft, Building2, CheckCircle2, Flag, MapPin, MessageSquare, Pencil, ShieldAlert, ShieldCheck, Sparkles, ThumbsDown, ThumbsUp, Trash2, TriangleAlert, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { CategoryBadge, PriorityBadge, StatusBadge } from '@/components/ui/Badges';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
@@ -37,6 +37,14 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
   const [flagBusy, setFlagBusy] = useState(false);
   const [flagError, setFlagError] = useState<string | null>(null);
   const [flagSuccess, setFlagSuccess] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('flag=true')) {
+      setFlagExplanation('');
+      setFlagError(null);
+      setFlaggingOpen(true);
+    }
+  }, []);
 
   const [removeBusy, setRemoveBusy] = useState(false);
   const [dismissBusy, setDismissBusy] = useState(false);
@@ -135,7 +143,7 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
   if (report.error || !r) return <ErrorState message={report.error ?? 'Report not found'} onRetry={report.reload} />;
 
   const role = profile?.role;
-  const canEditClassification = r.viewer.canManage || (r.viewer.isOwner && (r.status === 'SUBMITTED' || r.status === 'UNDER_REVIEW'));
+  const canEditClassification = r.viewer.canManage || (r.viewer.isOwner && (r.status === 'SUBMITTED' || r.status === 'UNDER_REVIEW' || r.status === 'IN_PROGRESS'));
 
   return (
     <div>
@@ -165,19 +173,57 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
 
           <Card className="overflow-hidden">
             <div className="p-5 sm:p-6">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <StatusBadge status={r.status} />
-                <CategoryBadge category={r.category} />
-                <PriorityBadge priority={r.priority} />
-                {r.location.city && (
-                  <span className="inline-flex items-center rounded-md bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-700 dark:bg-stone-800 dark:text-stone-300">
-                    📍 {r.location.city}
-                  </span>
-                )}
-                {r.targetCompany && (
-                  <span className="inline-flex items-center rounded-md bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
-                    🏛️ {r.targetCompany}{r.targetBranch ? ` • ${r.targetBranch}` : ''}
-                  </span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <StatusBadge status={r.status} />
+                  <CategoryBadge category={r.category} />
+                  <PriorityBadge priority={r.priority} />
+                  {r.location.city && (
+                    <span className="inline-flex items-center rounded-md bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-700 dark:bg-stone-800 dark:text-stone-300">
+                      📍 {r.location.city}
+                    </span>
+                  )}
+                  {r.targetCompany && (
+                    <span className="inline-flex items-center rounded-md bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+                      🏛️ {r.targetCompany}{r.targetBranch ? ` • ${r.targetBranch}` : ''}
+                    </span>
+                  )}
+                  {r.isFlagged && (
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-600 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
+                      <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-rose-600 font-black text-[9px]">!</span>
+                      FLAGGED POST ({r.flagCount ?? 1})
+                    </span>
+                  )}
+                </div>
+
+                {/* Red Exclamation Mark Report Button */}
+                {!r.viewer.isOwner && (
+                  <div>
+                    {r.viewer.hasFlagged || flagSuccess ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300">
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-white font-black text-[10px]">!</span>
+                        Reported by you
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!profile) {
+                            router.push(`/login?next=/reports/${r.id}`);
+                            return;
+                          }
+                          setFlagExplanation('');
+                          setFlagError(null);
+                          setFlaggingOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border-2 border-rose-500 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-100 hover:border-rose-600 dark:border-rose-700 dark:bg-rose-950/40 dark:text-rose-200 dark:hover:bg-rose-950/60"
+                        title="Report fake or problematic post"
+                      >
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-white font-black text-[10px]">!</span>
+                        Report Post
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
               <h1 className="mt-3 text-2xl sm:text-3xl">{r.title}</h1>
@@ -285,7 +331,7 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
             </div>
           </Card>
 
-          <CommentsCard reportId={r.id} state={comments} canComment={!!profile} onCommentAdded={reloadAll} />
+          <CommentsCard reportId={r.id} reportIsFlagged={Boolean(r.isFlagged)} commentAnalysis={r.commentAnalysis} state={comments} canComment={!!profile} onCommentAdded={reloadAll} />
         </div>
 
         <aside className="space-y-4">
@@ -302,37 +348,46 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
             </p>
           </Card>
 
-          {profile?.role === 'CITIZEN' && !r.viewer.isOwner && (
-            <Card className="p-4">
+          {!r.viewer.isOwner && (
+            <Card className="p-4 border-rose-200 dark:border-rose-900/40">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-semibold">Community Integrity</p>
+                  <p className="text-sm font-semibold flex items-center gap-1.5">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-white font-black text-[10px]">!</span>
+                    Community Integrity
+                  </p>
                   <p className="text-xs text-forest-muted">
                     {r.flagCount ? `${r.flagCount} user flag${r.flagCount > 1 ? 's' : ''}` : 'No flags submitted'}
                   </p>
                 </div>
                 {r.viewer.hasFlagged || flagSuccess ? (
-                  <span className="flex items-center gap-1 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-                    <Flag className="h-3.5 w-3.5 text-amber-600" /> Flagged by you
+                  <span className="flex items-center gap-1 rounded-md bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+                    <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-600 text-white font-black text-[9px]">!</span>
+                    Flagged by you
                   </span>
                 ) : (
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="danger"
                     size="sm"
                     onClick={() => {
+                      if (!profile) {
+                        router.push(`/login?next=/reports/${r.id}`);
+                        return;
+                      }
                       setFlagExplanation('');
                       setFlagError(null);
                       setFlaggingOpen(true);
                     }}
-                    className="text-xs text-danger hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                    className="flex items-center gap-1.5 text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold"
                   >
-                    <Flag className="h-3.5 w-3.5" /> Report Post
+                    <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-rose-600 font-black text-[9px]">!</span>
+                    Report Post
                   </Button>
                 )}
               </div>
               <p className="mt-2 text-[11px] text-forest-muted">
-                Notice fake photos, duplicate issues, or already fixed problems? Report to alert moderators.
+                Notice fake photos, duplicate issues, or already fixed problems? Click Report to alert moderators.
               </p>
             </Card>
           )}
@@ -478,9 +533,14 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
           <div className="relative max-h-[90vh] w-full max-w-lg overflow-hidden rounded-2xl border border-line bg-card shadow-2xl">
             <div className="flex items-center justify-between border-b border-line px-5 py-4">
-              <div>
-                <h2 className="text-lg font-bold text-forest">Report Post to Moderators</h2>
-                <p className="text-xs text-forest-muted">Help us protect community integrity by flagging fake or problematic posts</p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white font-extrabold text-lg shadow-sm">
+                  !
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-forest">Report Fake / Problematic Post</h2>
+                  <p className="text-xs text-forest-muted">Help us protect community integrity. Flagged posts alert admins immediately.</p>
+                </div>
               </div>
               <button
                 type="button"
@@ -557,8 +617,9 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
               <Button type="button" variant="secondary" onClick={() => setFlaggingOpen(false)}>
                 Cancel
               </Button>
-              <Button form="flag-modal-form" type="submit" variant="danger" loading={flagBusy}>
-                Submit Report
+              <Button form="flag-modal-form" type="submit" variant="danger" loading={flagBusy} className="flex items-center gap-1.5">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-rose-600 font-black text-[10px]">!</span>
+                Flag Post for Review
               </Button>
             </div>
           </div>
@@ -800,18 +861,31 @@ function ResolutionCard({ report, onChanged }: { report: Report; onChanged: () =
 // ------------------------------------------------------------------ comments
 function CommentsCard({
   reportId,
+  reportIsFlagged,
+  commentAnalysis,
   state,
   canComment,
   onCommentAdded,
 }: {
   reportId: string;
+  reportIsFlagged?: boolean;
+  commentAnalysis?: Report['commentAnalysis'];
   state: { data?: Comment[]; error?: string; loading: boolean; reload: () => void };
   canComment: boolean;
   onCommentAdded?: () => void;
 }) {
   const [text, setText] = useState('');
+  const [flagAsFake, setFlagAsFake] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const DISPUTE_KEYWORDS = [
+    'fake', 'scam', 'fraud', 'staged', 'fabricated', 'not real', 'not true',
+    'already fixed', 'already resolved', 'already repaired', 'fixed months ago', 'fixed already',
+    'wrong location', 'wrong place', 'not here', 'does not exist', "doesn't exist", 'no issue here',
+    'ai generated', 'photoshop', 'photoshopped', 'old photo', 'old picture', 'not recent',
+    'from the internet', 'google image', 'copied', 'duplicate', 'hoax', 'bogus', 'lie', 'lying',
+  ];
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -819,8 +893,13 @@ function CommentsCard({
     setBusy(true);
     setError(null);
     try {
-      await api.post(`/reports/${reportId}/comments`, { text: text.trim() });
+      await api.post(`/reports/${reportId}/comments`, {
+        text: text.trim(),
+        flagAsFake,
+        flagReason: 'FAKE_OR_STAGED',
+      });
       setText('');
+      setFlagAsFake(false);
       state.reload();
       onCommentAdded?.();
     } catch (err) {
@@ -834,22 +913,58 @@ function CommentsCard({
     <Card>
       <CardHeader title={`Comments${state.data ? ` (${state.data.length})` : ''}`} icon={<MessageSquare className="h-4 w-4" />} />
       <div className="space-y-4 p-5">
+        {(reportIsFlagged || commentAnalysis?.isDisputedOrFake) && (
+          <div className="rounded-lg border border-rose-300 bg-rose-50 p-3 text-xs text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200">
+            <div className="flex items-start gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white font-black text-xs">!</span>
+              <div>
+                <p className="font-bold">Community Moderation &amp; Dispute Notice</p>
+                <p className="mt-0.5 text-rose-800 dark:text-rose-300">
+                  {commentAnalysis?.disputeReason
+                    ? `Comments have flagged this issue: "${commentAnalysis.disputeReason}"`
+                    : 'Community feedback or reports indicate this post may be fake, staged, or invalid. This report has been flagged for administrator review.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {state.loading && !state.data ? (
           <Spinner />
         ) : state.error ? (
           <ErrorState message={state.error} onRetry={state.reload} />
         ) : state.data && state.data.length > 0 ? (
           <ul className="space-y-3">
-            {state.data.map((c) => (
-              <li key={c.id} className="rounded-lg bg-mint p-3 text-sm">
-                <p className="flex flex-wrap items-center gap-x-2 text-xs text-forest-muted">
-                  <strong className="text-forest">{c.userName}</strong>
-                  {c.userRole !== 'CITIZEN' && <span className="rounded-full bg-teal px-2 py-0.5 font-semibold text-white">{ROLE_LABELS[c.userRole]}</span>}
-                  <span>{timeAgo(c.createdAt)}</span>
-                </p>
-                <p className="mt-1 whitespace-pre-line">{c.text}</p>
-              </li>
-            ))}
+            {state.data.map((c) => {
+              const isDispute = DISPUTE_KEYWORDS.some((kw) => c.text.toLowerCase().includes(kw));
+              return (
+                <li
+                  key={c.id}
+                  className={`rounded-lg p-3 text-sm ${
+                    isDispute
+                      ? 'border border-rose-200 bg-rose-50/60 dark:border-rose-900/40 dark:bg-rose-950/20'
+                      : 'bg-mint'
+                  }`}
+                >
+                  <p className="flex flex-wrap items-center gap-x-2 text-xs text-forest-muted">
+                    <strong className="text-forest">{c.userName}</strong>
+                    {c.userRole !== 'CITIZEN' && (
+                      <span className="rounded-full bg-teal px-2 py-0.5 font-semibold text-white">
+                        {ROLE_LABELS[c.userRole]}
+                      </span>
+                    )}
+                    {isDispute && (
+                      <span className="inline-flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                        <span className="flex h-3 w-3 items-center justify-center rounded-full bg-rose-600 text-white font-black text-[8px]">!</span>
+                        Dispute / Fake claim
+                      </span>
+                    )}
+                    <span>{timeAgo(c.createdAt)}</span>
+                  </p>
+                  <p className="mt-1 whitespace-pre-line">{c.text}</p>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-sm text-forest-muted">No comments yet. Add details that could help the authority.</p>
@@ -861,10 +976,31 @@ function CommentsCard({
             <label htmlFor="comment" className="sr-only">
               Add a comment
             </label>
-            <Textarea id="comment" rows={2} maxLength={1000} placeholder="Add a comment..." value={text} onChange={(e) => setText(e.target.value)} />
-            <Button type="submit" size="sm" loading={busy} disabled={!text.trim()}>
-              Post comment
-            </Button>
+            <Textarea
+              id="comment"
+              rows={2}
+              maxLength={1000}
+              placeholder="Add a comment or community update..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-xs font-semibold text-rose-700 dark:text-rose-300 hover:text-rose-800">
+                <input
+                  type="checkbox"
+                  checked={flagAsFake}
+                  onChange={(e) => setFlagAsFake(e.target.checked)}
+                  className="rounded border-rose-300 text-rose-600 focus:ring-rose-500"
+                />
+                <span className="flex items-center gap-1">
+                  <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-600 text-white font-black text-[9px]">!</span>
+                  Flag this report as fake / invalid
+                </span>
+              </label>
+              <Button type="submit" size="sm" loading={busy} disabled={!text.trim()}>
+                Post comment
+              </Button>
+            </div>
           </form>
         ) : (
           <p className="text-sm">

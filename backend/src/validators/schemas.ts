@@ -89,7 +89,11 @@ export const classificationBody = z
   .object({ category: z.enum(CATEGORIES).optional(), priority: z.enum(PRIORITIES).optional() })
   .refine((v) => v.category !== undefined || v.priority !== undefined, 'Provide a category or priority');
 
-export const commentBody = z.object({ text: text(1, 1000) });
+export const commentBody = z.object({
+  text: text(1, 1000),
+  flagAsFake: z.boolean().optional(),
+  flagReason: z.enum(FLAG_REASONS).optional(),
+});
 
 export const verifyBody = z
   .object({ status: z.enum(VERIFICATION_STATUSES), explanation: optionalText(500) })

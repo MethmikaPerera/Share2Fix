@@ -3,7 +3,7 @@
 import { Camera, CheckCircle2, Crosshair, ShieldCheck, Sparkles, TriangleAlert, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { CategoryBadge, PriorityBadge } from '@/components/ui/Badges';
+import { CategoryBadge, PriorityBadge, StatusBadge } from '@/components/ui/Badges';
 import { Button, LinkButton } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Feedback';
@@ -404,8 +404,8 @@ function SubmittedPanel({ report, onAnother }: { report: Report; onAnother: () =
       <div className="flex items-start gap-3">
         <CheckCircle2 className="mt-1 h-7 w-7 shrink-0 text-teal" aria-hidden />
         <div>
-          <h2 className="text-2xl">Report submitted</h2>
-          <p className="mt-1 text-forest-muted">Thank you for helping your community. You can follow every update on the report timeline.</p>
+          <h2 className="text-2xl">Report published &amp; in progress</h2>
+          <p className="mt-1 text-forest-muted">Your report is live on the community platform. Status is marked as In Progress.</p>
         </div>
       </div>
 
@@ -413,6 +413,7 @@ function SubmittedPanel({ report, onAnother }: { report: Report; onAnother: () =
         <div>
           <dt className="font-semibold">{report.title}</dt>
           <dd className="mt-1 flex flex-wrap gap-1.5">
+            <StatusBadge status={report.status} />
             <CategoryBadge category={report.category} />
             <PriorityBadge priority={report.priority} />
           </dd>

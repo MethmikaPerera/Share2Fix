@@ -6,10 +6,13 @@ import type { Report } from '@/types';
 
 export function ReportCard({ report, href }: { report: Report; href?: string }) {
   const thumb = report.imageUrls[0];
+  const targetHref = href ?? `/reports/${report.id}`;
   return (
     <Link
-      href={href ?? `/reports/${report.id}`}
-      className="group flex h-full flex-col overflow-hidden rounded-card border border-line bg-white text-forest no-underline shadow-card transition hover:border-turquoise hover:shadow-md"
+      href={targetHref}
+      className={`group flex h-full flex-col overflow-hidden rounded-card border ${
+        report.isFlagged ? 'border-rose-300 ring-1 ring-rose-200' : 'border-line'
+      } bg-white text-forest no-underline shadow-card transition hover:border-turquoise hover:shadow-md`}
     >
       <div className="relative aspect-[16/9] bg-pale">
         {thumb ? (
@@ -23,6 +26,12 @@ export function ReportCard({ report, href }: { report: Report; href?: string }) 
         <div className="absolute left-2 top-2">
           <StatusBadge status={report.status} />
         </div>
+        {report.isFlagged && (
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white shadow-md">
+            <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white text-rose-600 font-black text-[9px]">!</span>
+            FLAGGED
+          </div>
+        )}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <h3 className="line-clamp-2 text-base font-semibold group-hover:text-teal">{report.title}</h3>
@@ -40,8 +49,9 @@ export function ReportCard({ report, href }: { report: Report; href?: string }) 
             </span>
           )}
           {report.isFlagged && (
-            <span className="inline-flex items-center gap-1 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">
-              <Flag className="h-2.5 w-2.5" /> Flagged ({report.flagCount ?? 0})
+            <span className="inline-flex items-center gap-1 rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+              <span className="flex h-3 w-3 items-center justify-center rounded-full bg-white text-rose-600 font-black text-[8px]">!</span>
+              Flagged ({report.flagCount ?? 1})
             </span>
           )}
         </div>
@@ -60,7 +70,22 @@ export function ReportCard({ report, href }: { report: Report; href?: string }) 
               <MessageSquare className="h-3.5 w-3.5" aria-hidden /> {report.commentCount}
             </span>
           </span>
-          <span>{timeAgo(report.createdAt)}</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.location.href = `${targetHref}?flag=true`;
+              }}
+              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-800 transition"
+              title="Report fake or problematic post"
+            >
+              <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-600 text-white font-black text-[9px]">!</span>
+              Report
+            </button>
+            <span>{timeAgo(report.createdAt)}</span>
+          </div>
         </div>
       </div>
     </Link>
