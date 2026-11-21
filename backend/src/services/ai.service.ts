@@ -189,24 +189,47 @@ export const aiService = {
         text: `${PROMPT}\n\n<report>\nTitle: ${cleanText(input.title ?? '', 120)}\nDescription: ${cleanText(input.description, 2000)}\n</report>`,
       });
 
-      const request = () =>
-        withTimeout(
-          client.models.generateContent({
-            model: env.GEMINI_MODEL,
-            contents: [{ role: 'user', parts }],
-            config: { responseMimeType: 'application/json', responseSchema, temperature: 0.2 },
-          }),
-          20_000,
-        );
-      // Gemini intermittently answers 503 ("high demand") / 429: retry once after a short pause.
+      const candidateModels = Array.from(new Set([env.GEMINI_MODEL, 'gemini-3.5-flash-lite', 'gemini-3.8-flash']));
       let response;
-      try {
-        response = await request();
-      } catch (firstErr) {
-        const reason = classifyError(firstErr);
-        if (reason !== 'SERVICE_UNAVAILABLE' && reason !== 'RATE_LIMITED') throw firstErr;
-        await new Promise((r) => setTimeout(r, 1500));
-        response = await request();
+      let usedModel = env.GEMINI_MODEL;
+      let lastErr: unknown;
+
+      for (const model of candidateModels) {
+        try {
+          usedModel = model;
+          response = await withTimeout(
+            client.models.generateContent({
+              model,
+              contents: [{ role: 'user', parts }],
+              config: { responseMimeType: 'application/json', responseSchema, temperature: 0.2 },
+            }),
+            20_000,
+          );
+          if (response?.text) break;
+        } catch (firstErr) {
+          lastErr = firstErr;
+          const reason = classifyError(firstErr);
+          if (reason === 'SERVICE_UNAVAILABLE' || reason === 'RATE_LIMITED') {
+            await new Promise((r) => setTimeout(r, 1200));
+            try {
+              response = await withTimeout(
+                client.models.generateContent({
+                  model,
+                  contents: [{ role: 'user', parts }],
+                  config: { responseMimeType: 'application/json', responseSchema, temperature: 0.2 },
+                }),
+                20_000,
+              );
+              if (response?.text) break;
+            } catch (retryErr) {
+              lastErr = retryErr;
+            }
+          }
+        }
+      }
+
+      if (!response?.text) {
+        throw lastErr ?? new Error('Gemini generation failed');
       }
 
       const parsed = outputSchema.parse(JSON.parse(response.text ?? ''));
@@ -225,7 +248,7 @@ export const aiService = {
         summary: cleanText(parsed.summary, 300),
         keywords: parsed.keywords.map((k) => cleanText(k, 40)).filter(Boolean).slice(0, 8),
         confidence: Math.min(1, Math.max(0, parsed.confidence)),
-        model: env.GEMINI_MODEL,
+        model: usedModel,
         imageVerification: {
           isCivicIssue: Boolean(verification.isCivicIssue),
           matchesDescription: Boolean(verification.matchesDescription),
@@ -270,14 +293,27 @@ ${commentList}
 
 Return structured JSON evaluating whether the report is disputed as fake, your confidence, the specific reasons commenters give, the sentiment, and the number of fake claims.`;
 
-      const response = await withTimeout(
-        client.models.generateContent({
-          model: env.GEMINI_MODEL,
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          config: { responseMimeType: 'application/json', responseSchema: commentResponseSchema, temperature: 0.1 },
-        }),
-        20_000,
-      );
+      const candidateModels = Array.from(new Set([env.GEMINI_MODEL, 'gemini-3.5-flash-lite', 'gemini-3.8-flash']));
+      let response;
+      for (const model of candidateModels) {
+        try {
+          response = await withTimeout(
+            client.models.generateContent({
+              model,
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              config: { responseMimeType: 'application/json', responseSchema: commentResponseSchema, temperature: 0.1 },
+            }),
+            20_000,
+          );
+          if (response?.text) break;
+        } catch {
+          // Try next fallback model
+        }
+      }
+
+      if (!response?.text) {
+        throw new Error('Comments analysis failed across all candidate models');
+      }
 
       const parsed = commentOutputSchema.parse(JSON.parse(response.text ?? '{}'));
       return {
