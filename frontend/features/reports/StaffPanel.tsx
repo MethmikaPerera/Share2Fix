@@ -7,6 +7,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Alert } from '@/components/ui/Feedback';
 import { Field, Select, Textarea } from '@/components/ui/Form';
 import { ImagePicker } from '@/components/ui/ImagePicker';
+import { useAuth } from '@/features/auth/AuthProvider';
 import { useAsync } from '@/hooks/useAsync';
 import { api, errorMessage } from '@/lib/api';
 import { NEXT_STATUSES, STATUSES, labelOf } from '@/lib/constants';
@@ -40,7 +41,11 @@ export function StaffPanel({ report, onChanged }: { report: Report; onChanged: (
 }
 
 function StatusForm({ report, onChanged }: { report: Report; onChanged: () => void }) {
-  const options = NEXT_STATUSES[report.status];
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'ADMIN';
+  const options = isAdmin
+    ? STATUSES.map((s) => s.value).filter((s) => s !== report.status)
+    : NEXT_STATUSES[report.status];
   const [status, setStatus] = useState<Status | ''>('');
   const [explanation, setExplanation] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -48,8 +53,8 @@ function StatusForm({ report, onChanged }: { report: Report; onChanged: () => vo
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const needsExplanation = status === 'RESOLVED' || status === 'REJECTED' || report.status === 'RESOLVED';
-  const needsEvidence = status === 'RESOLVED';
+  const needsExplanation = (status === 'RESOLVED' || status === 'REJECTED' || report.status === 'RESOLVED') && !isAdmin;
+  const needsEvidence = status === 'RESOLVED' && !isAdmin;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -62,7 +67,14 @@ function StatusForm({ report, onChanged }: { report: Report; onChanged: () => vo
     try {
       const form = new FormData();
       form.set('status', status);
-      form.set('explanation', explanation.trim());
+      const defaultExp =
+        status === 'RESOLVED'
+          ? 'Issue verified and marked as fixed.'
+          : status === 'IN_PROGRESS'
+          ? 'Work marked as in progress.'
+          : `Status changed to ${labelOf(STATUSES, status)}.`;
+      const finalExp = explanation.trim() || defaultExp;
+      form.set('explanation', finalExp);
       files.forEach((f) => form.append('images', f));
       await api.postForm(`/reports/${report.id}/status`, form);
       setStatus('');
@@ -89,11 +101,18 @@ function StatusForm({ report, onChanged }: { report: Report; onChanged: () => vo
         <Field label="New status" htmlFor="new-status">
           <Select id="new-status" value={status} onChange={(e) => setStatus(e.target.value as Status)}>
             <option value="">Select...</option>
-            {options.map((s) => (
-              <option key={s} value={s}>
-                {report.status === 'RESOLVED' && s === 'IN_PROGRESS' ? 'Re-open (In progress)' : labelOf(STATUSES, s)}
-              </option>
-            ))}
+            {options.map((s) => {
+              let label = labelOf(STATUSES, s);
+              if (s === 'RESOLVED') label = 'Resolved / Fixed';
+              else if (s === 'IN_PROGRESS') {
+                label = report.status === 'RESOLVED' ? 'Re-open (In progress)' : 'In Progress (Active Work)';
+              }
+              return (
+                <option key={s} value={s}>
+                  {label}
+                </option>
+              );
+            })}
           </Select>
         </Field>
         <Field

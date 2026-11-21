@@ -15,7 +15,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { api, errorMessage } from '@/lib/api';
 import { CATEGORIES, FACEBOOK_FLAG_OPTIONS, PRIORITIES, ROLE_LABELS, labelOf } from '@/lib/constants';
 import { formatDate, timeAgo } from '@/lib/format';
-import type { Category, Comment, FlagReason, MapPin as Pin, Priority, Report, ReportFlag, TimelineEvent } from '@/types';
+import type { Category, Comment, FlagReason, MapPin as Pin, Priority, Report, ReportFlag, Status, TimelineEvent } from '@/types';
 import { EvidenceGallery } from './EvidenceGallery';
 import { StaffPanel } from './StaffPanel';
 import { Timeline } from './Timeline';
@@ -40,6 +40,7 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
 
   const [removeBusy, setRemoveBusy] = useState(false);
   const [dismissBusy, setDismissBusy] = useState(false);
+  const [statusBusy, setStatusBusy] = useState<string | null>(null);
 
   const reloadAll = () => {
     report.reload();
@@ -91,6 +92,21 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
       alert(errorMessage(err));
     } finally {
       setDismissBusy(false);
+    }
+  }
+
+  async function quickUpdateStatus(newStatus: Status, defaultExplanation: string) {
+    setStatusBusy(newStatus);
+    try {
+      const form = new FormData();
+      form.set('status', newStatus);
+      form.set('explanation', defaultExplanation);
+      await api.postForm(`/reports/${id}/status`, form);
+      reloadAll();
+    } catch (err) {
+      alert(errorMessage(err));
+    } finally {
+      setStatusBusy(null);
     }
   }
 
@@ -374,6 +390,50 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
                     </div>
                   </div>
                 )}
+
+                <div className="rounded-lg border border-rose-200/80 bg-white/80 p-2.5 dark:border-rose-900/40 dark:bg-stone-900/80">
+                  <p className="mb-1.5 text-[11px] font-semibold text-rose-950 dark:text-rose-200">
+                    Admin Status Controls:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {r.status !== 'IN_PROGRESS' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        loading={statusBusy === 'IN_PROGRESS'}
+                        onClick={() => quickUpdateStatus('IN_PROGRESS', 'Admin marked issue as In Progress')}
+                        className="px-2.5 py-1 text-[11px]"
+                      >
+                        Set &ldquo;In Progress&rdquo;
+                      </Button>
+                    )}
+                    {r.status !== 'RESOLVED' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="primary"
+                        loading={statusBusy === 'RESOLVED'}
+                        onClick={() => quickUpdateStatus('RESOLVED', 'Issue fixed and verified by administrator.')}
+                        className="bg-emerald-600 px-2.5 py-1 text-[11px] text-white hover:bg-emerald-700"
+                      >
+                        Mark as Fixed (Resolved)
+                      </Button>
+                    )}
+                    {r.status === 'RESOLVED' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        loading={statusBusy === 'IN_PROGRESS'}
+                        onClick={() => quickUpdateStatus('IN_PROGRESS', 'Admin re-opened report for further work.')}
+                        className="px-2.5 py-1 text-[11px]"
+                      >
+                        Re-open (In progress)
+                      </Button>
+                    )}
+                  </div>
+                </div>
 
                 <div className="flex flex-col gap-2 pt-2 border-t border-rose-200 dark:border-rose-900/40">
                   {r.isFlagged && (

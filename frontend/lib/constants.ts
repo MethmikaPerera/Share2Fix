@@ -104,12 +104,12 @@ export const STATUSES: { value: Status; label: string }[] = [
 
 /** Status transitions an officer may choose (mirrors the backend rules; the server is authoritative). */
 export const NEXT_STATUSES: Record<Status, Status[]> = {
-  SUBMITTED: ['UNDER_REVIEW', 'ACCEPTED', 'REJECTED'],
-  UNDER_REVIEW: ['ACCEPTED', 'REJECTED'],
-  ACCEPTED: ['IN_PROGRESS', 'RESOLVED', 'REJECTED'],
-  IN_PROGRESS: ['RESOLVED', 'REJECTED'],
-  RESOLVED: ['IN_PROGRESS'],
-  REJECTED: ['UNDER_REVIEW'],
+  SUBMITTED: ['IN_PROGRESS', 'RESOLVED', 'ACCEPTED', 'UNDER_REVIEW', 'REJECTED'],
+  UNDER_REVIEW: ['IN_PROGRESS', 'RESOLVED', 'ACCEPTED', 'REJECTED'],
+  ACCEPTED: ['IN_PROGRESS', 'RESOLVED', 'UNDER_REVIEW', 'REJECTED'],
+  IN_PROGRESS: ['RESOLVED', 'ACCEPTED', 'UNDER_REVIEW', 'REJECTED'],
+  RESOLVED: ['IN_PROGRESS', 'UNDER_REVIEW'],
+  REJECTED: ['SUBMITTED', 'UNDER_REVIEW', 'IN_PROGRESS'],
 };
 
 export const AUTHORITY_TYPES: { value: AuthorityType; label: string }[] = [

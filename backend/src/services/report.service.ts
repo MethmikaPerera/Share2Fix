@@ -12,7 +12,7 @@ import {
 } from '../repositories/activity.repository';
 import { usersRepo } from '../repositories/users.repository';
 import { reportsRepo, type ReportFilters } from '../repositories/reports.repository';
-import type { AuthUser, Category, FlagReason, Priority, ReportDoc, Status, TimelineType, VerificationStatus } from '../types';
+import { STATUSES, type AuthUser, type Category, type FlagReason, type Priority, type ReportDoc, type Status, type TimelineType, type VerificationStatus } from '../types';
 import { AppError } from '../utils/errors';
 import {
   canManageReport,
@@ -31,12 +31,12 @@ import { storageService } from './storage.service';
 
 /** Allowed status transitions. Verification by citizens never changes status (see verify()). */
 const TRANSITIONS: Record<Status, Status[]> = {
-  SUBMITTED: ['UNDER_REVIEW', 'ACCEPTED', 'REJECTED'],
-  UNDER_REVIEW: ['ACCEPTED', 'REJECTED'],
-  ACCEPTED: ['IN_PROGRESS', 'RESOLVED', 'REJECTED'],
-  IN_PROGRESS: ['RESOLVED', 'REJECTED'],
-  RESOLVED: ['IN_PROGRESS'], // re-open, e.g. after disputed verification
-  REJECTED: ['UNDER_REVIEW'], // reconsider
+  SUBMITTED: ['IN_PROGRESS', 'RESOLVED', 'ACCEPTED', 'UNDER_REVIEW', 'REJECTED'],
+  UNDER_REVIEW: ['IN_PROGRESS', 'RESOLVED', 'ACCEPTED', 'REJECTED'],
+  ACCEPTED: ['IN_PROGRESS', 'RESOLVED', 'UNDER_REVIEW', 'REJECTED'],
+  IN_PROGRESS: ['RESOLVED', 'ACCEPTED', 'UNDER_REVIEW', 'REJECTED'],
+  RESOLVED: ['IN_PROGRESS', 'UNDER_REVIEW'], // re-open, e.g. after disputed verification
+  REJECTED: ['SUBMITTED', 'UNDER_REVIEW', 'IN_PROGRESS'], // reconsider
 };
 
 const EXPLANATION_REQUIRED: Status[] = ['RESOLVED', 'REJECTED'];
@@ -167,7 +167,8 @@ export const reportService = {
     const ref = reportsRepo.newRef();
     const aiOk = aiAnalysis.status === 'OK';
     const priority: Priority = aiOk && aiAnalysis.priority ? aiAnalysis.priority : 'MEDIUM';
-    const initialStatus: Status = behavioral.riskLevel === 'LOW' ? 'SUBMITTED' : 'UNDER_REVIEW';
+    // Reporting does not require approval; every report starts active as SUBMITTED
+    const initialStatus: Status = 'SUBMITTED';
 
     try {
       const batch = db.batch();
@@ -618,26 +619,37 @@ export const reportService = {
     const precheck = await requireManageable(user, id);
     const explanation = cleanText(input.explanation, 1000);
 
-    if (!TRANSITIONS[precheck.status].includes(input.status)) {
+    const allowedTransitions = user.role === 'ADMIN' ? STATUSES : TRANSITIONS[precheck.status];
+    if (!allowedTransitions.includes(input.status)) {
       throw AppError.conflict(`Cannot change status from ${precheck.status} to ${input.status}`, 'INVALID_TRANSITION');
     }
-    if (EXPLANATION_REQUIRED.includes(input.status) && explanation.length < 10) {
-      throw AppError.unprocessable(
-        `An explanation (at least 10 characters) is required when marking a report ${statusLabel(input.status)}`,
-        undefined,
-        'EXPLANATION_REQUIRED',
-      );
+    if (user.role !== 'ADMIN') {
+      if (EXPLANATION_REQUIRED.includes(input.status) && explanation.length < 10) {
+        throw AppError.unprocessable(
+          `An explanation (at least 10 characters) is required when marking a report ${statusLabel(input.status)}`,
+          undefined,
+          'EXPLANATION_REQUIRED',
+        );
+      }
+      if (precheck.status === 'RESOLVED' && explanation.length < 10) {
+        throw AppError.unprocessable('Please explain why this resolved report is being re-opened', undefined, 'EXPLANATION_REQUIRED');
+      }
+      if (input.status === 'RESOLVED' && files.length === 0) {
+        throw AppError.unprocessable(
+          'Resolution evidence (at least one photograph) is required to mark a report as resolved',
+          undefined,
+          'EVIDENCE_REQUIRED',
+        );
+      }
     }
-    if (precheck.status === 'RESOLVED' && explanation.length < 10) {
-      throw AppError.unprocessable('Please explain why this resolved report is being re-opened', undefined, 'EXPLANATION_REQUIRED');
-    }
-    if (input.status === 'RESOLVED' && files.length === 0) {
-      throw AppError.unprocessable(
-        'Resolution evidence (at least one photograph) is required to mark a report as resolved',
-        undefined,
-        'EVIDENCE_REQUIRED',
-      );
-    }
+
+    const effectiveExplanation = explanation.length > 0
+      ? explanation
+      : input.status === 'RESOLVED'
+        ? 'Issue verified and marked as fixed by administration.'
+        : input.status === 'IN_PROGRESS'
+          ? 'Work marked as in progress by administration.'
+          : `Status changed to ${statusLabel(input.status)} by administration.`;
 
     const evidenceUrls = files.length ? await storageService.uploadImages(files, 'resolutions', user.uid) : [];
 
@@ -652,7 +664,7 @@ export const reportService = {
         const patch: Record<string, unknown> = { status: input.status, updatedAt: FieldValue.serverTimestamp() };
         if (input.status === 'RESOLVED') {
           patch.resolution = {
-            explanation,
+            explanation: effectiveExplanation,
             evidenceUrls,
             resolvedBy: user.fullName,
             resolvedAt: new Date(),
@@ -672,7 +684,7 @@ export const reportService = {
           previousStatus: report.status,
           newStatus: input.status,
           actor: staffActor(user),
-          explanation,
+          explanation: effectiveExplanation,
           evidenceUrls,
         });
 
@@ -682,8 +694,8 @@ export const reportService = {
           id,
           input.status === 'RESOLVED' ? 'RESOLUTION' : 'STATUS_CHANGE',
           input.status === 'RESOLVED'
-            ? `"${report.title}" was marked resolved. Please verify the fix.`
-            : `"${report.title}" is now ${statusLabel(input.status)}.`,
+            ? `"${report.title}" was marked resolved: ${effectiveExplanation}`
+            : `"${report.title}" is now ${statusLabel(input.status)}: ${effectiveExplanation}`,
         );
       });
     } catch (err) {
