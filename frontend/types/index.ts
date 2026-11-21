@@ -43,6 +43,29 @@ export interface Profile {
   createdAt: string | null;
 }
 
+export interface ImageVerification {
+  isCivicIssue: boolean;
+  matchesDescription: boolean;
+  authenticityScore: number;
+  flagged: boolean;
+  flagReason: string;
+}
+
+export interface BehavioralCheck {
+  trustScore: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  flags: string[];
+  passed: boolean;
+  details: {
+    velocityCountLast5Min: number;
+    geoSpeedKmH?: number;
+    isDuplicateImage: boolean;
+    imageAuthenticityScore: number;
+    isCivicIssue: boolean;
+    matchesDescription: boolean;
+  };
+}
+
 export interface AiAnalysis {
   status: 'OK' | 'UNAVAILABLE';
   category: Category | null;
@@ -52,6 +75,7 @@ export interface AiAnalysis {
   confidence: number;
   model: string | null;
   failureReason?: string;
+  imageVerification?: ImageVerification;
 }
 
 export interface Report {
@@ -64,6 +88,7 @@ export interface Report {
   categorySource: 'CITIZEN' | 'AI' | 'OFFICER';
   prioritySource: 'AI' | 'DEFAULT' | 'CITIZEN' | 'OFFICER';
   imageUrls: string[];
+  behavioralCheck?: BehavioralCheck | null;
   location: { latitude: number; longitude: number; address: string };
   assignedAuthority: { id: string; name: string } | null;
   routing: { method: 'COVERAGE_MATCH' | 'NONE' | 'MANUAL'; suggested: boolean; note: string; isDemoData: boolean };

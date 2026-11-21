@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Building2, CheckCircle2, MapPin, MessageSquare, Pencil, Sparkles, ThumbsDown, ThumbsUp, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Building2, CheckCircle2, MapPin, MessageSquare, Pencil, ShieldCheck, Sparkles, ThumbsDown, ThumbsUp, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState, type FormEvent } from 'react';
 import { CategoryBadge, PriorityBadge, StatusBadge } from '@/components/ui/Badges';
@@ -86,6 +86,81 @@ export function ReportDetail({ id, backHref, backLabel }: { id: string; backHref
             </div>
             <IssueMap pins={pin} height="260px" />
           </Card>
+
+          {r.behavioralCheck && (
+            <Card className="overflow-hidden">
+              <CardHeader title="AI & Behavioral Verification" icon={<ShieldCheck className="h-4 w-4 text-turquoise" />} />
+              <div className="space-y-3 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Trust Assessment:</span>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        r.behavioralCheck.riskLevel === 'LOW'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                          : r.behavioralCheck.riskLevel === 'MEDIUM'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
+                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300'
+                      }`}
+                    >
+                      {r.behavioralCheck.trustScore} / 100 • {r.behavioralCheck.riskLevel} RISK
+                    </span>
+                  </div>
+                  <span className="text-xs text-forest-muted">Checked during report submission</span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
+                  <div className="rounded-lg border border-line bg-mint p-3">
+                    <p className="text-xs font-medium text-forest-muted">Multimodal Image Check</p>
+                    <p className="mt-1 font-semibold flex items-center gap-1.5 text-xs">
+                      {r.behavioralCheck.details.isCivicIssue ? (
+                        <span className="text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Civic Issue Confirmed
+                        </span>
+                      ) : (
+                        <span className="text-danger flex items-center gap-1">
+                          <TriangleAlert className="h-3.5 w-3.5" /> Non-civic image flag
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-xs text-forest-muted">
+                      {r.behavioralCheck.details.matchesDescription ? 'Matches report description' : 'Description mismatch flagged'}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-line bg-mint p-3">
+                    <p className="text-xs font-medium text-forest-muted">Behavioral Patterns</p>
+                    <p className="mt-1 font-semibold flex items-center gap-1.5 text-xs">
+                      {!r.behavioralCheck.details.isDuplicateImage ? (
+                        <span className="text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Original Photo Verified
+                        </span>
+                      ) : (
+                        <span className="text-danger flex items-center gap-1">
+                          <TriangleAlert className="h-3.5 w-3.5" /> Duplicate image detected
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-xs text-forest-muted">
+                      Velocity: {r.behavioralCheck.details.velocityCountLast5Min} in 5 min • GPS:{' '}
+                      {r.behavioralCheck.details.geoSpeedKmH ? `${r.behavioralCheck.details.geoSpeedKmH} km/h` : 'Consistent'}
+                    </p>
+                  </div>
+                </div>
+
+                {r.behavioralCheck.flags.length > 0 && (
+                  <div className="rounded-md border border-amber-400/30 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+                    <p className="font-semibold mb-1">Behavioral Warnings / Flags:</p>
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {r.behavioralCheck.flags.map((f, i) => (
+                        <li key={i}>{f}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
 
           {r.status === 'RESOLVED' && r.resolution && <ResolutionCard report={r} onChanged={reloadAll} />}
 

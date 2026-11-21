@@ -16,6 +16,22 @@ import type { Authority, Report, Status } from '@/types';
 export function StaffPanel({ report, onChanged }: { report: Report; onChanged: () => void }) {
   return (
     <div className="space-y-4">
+      {report.behavioralCheck && report.behavioralCheck.riskLevel !== 'LOW' && (
+        <Alert tone="warning" title={`Behavioral Verification Alert (${report.behavioralCheck.riskLevel} RISK)`}>
+          <div className="space-y-1 text-xs">
+            <p>
+              Trust Score: <strong>{report.behavioralCheck.trustScore} / 100</strong>
+            </p>
+            {report.behavioralCheck.flags.length > 0 && (
+              <ul className="list-disc pl-4 mt-1">
+                {report.behavioralCheck.flags.map((flag, idx) => (
+                  <li key={idx}>{flag}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Alert>
+      )}
       <StatusForm report={report} onChanged={onChanged} />
       {report.status !== 'RESOLVED' && report.status !== 'REJECTED' && <ProgressForm report={report} onChanged={onChanged} />}
       <ReassignForm report={report} onChanged={onChanged} />

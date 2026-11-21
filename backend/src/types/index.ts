@@ -63,6 +63,29 @@ export interface AuthorityDoc {
   updatedAt: Timestamp;
 }
 
+export interface ImageVerification {
+  isCivicIssue: boolean;
+  matchesDescription: boolean;
+  authenticityScore: number;
+  flagged: boolean;
+  flagReason: string;
+}
+
+export interface BehavioralCheck {
+  trustScore: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  flags: string[];
+  passed: boolean;
+  details: {
+    velocityCountLast5Min: number;
+    geoSpeedKmH?: number;
+    isDuplicateImage: boolean;
+    imageAuthenticityScore: number;
+    isCivicIssue: boolean;
+    matchesDescription: boolean;
+  };
+}
+
 export interface AiAnalysis {
   status: 'OK' | 'UNAVAILABLE';
   category: Category | null;
@@ -72,6 +95,7 @@ export interface AiAnalysis {
   confidence: number;
   model: string | null;
   failureReason?: string;
+  imageVerification?: ImageVerification;
 }
 
 export interface ReportDoc {
@@ -84,6 +108,8 @@ export interface ReportDoc {
   categorySource: 'CITIZEN' | 'AI' | 'OFFICER';
   prioritySource: 'AI' | 'DEFAULT' | 'CITIZEN' | 'OFFICER';
   imageUrls: string[];
+  imageHashes?: string[];
+  behavioralCheck?: BehavioralCheck;
   location: { latitude: number; longitude: number; address: string };
   createdBy: string;
   createdByName: string;

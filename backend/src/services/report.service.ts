@@ -23,6 +23,7 @@ import { haversineKm } from '../utils/geo';
 import { cleanText } from '../utils/text';
 import type { CreateReportInput, ListReportsQuery, MapQuery } from '../validators/schemas';
 import { aiService } from './ai.service';
+import { behavioralService } from './behavioral.service';
 import { suggestAuthority } from './routing.service';
 import { storageService } from './storage.service';
 
@@ -108,6 +109,7 @@ export const reportService = {
 
     const title = cleanText(input.title, 120);
     const description = cleanText(input.description, 2000);
+    const imageHashes = behavioralService.hashFiles(files);
 
     // Upload and AI analysis are independent - run them together. AI never throws (graceful fallback).
     const [imageUrls, aiAnalysis] = await Promise.all([
@@ -115,11 +117,41 @@ export const reportService = {
       aiService.analyze({ title, description, image: { buffer: files[0]!.buffer, mimetype: files[0]!.mimetype } }),
     ]);
 
+    // Hybrid behavioral & AI image verification checks
+    const behavioral = await behavioralService.checkSubmission(user, input, files, aiAnalysis);
+
+    if (!behavioral.passed) {
+      await storageService.deleteByUrls(imageUrls);
+      if (behavioral.details.isDuplicateImage) {
+        throw AppError.badRequest(
+          'Image verification failed: This exact photograph has already been uploaded in another report. Please capture and upload an authentic photo of the issue.',
+          undefined,
+          'DUPLICATE_IMAGE_DETECTED',
+        );
+      }
+      if (!behavioral.details.isCivicIssue && behavioral.details.imageAuthenticityScore < 0.35) {
+        const reason = aiAnalysis.imageVerification?.flagReason || 'The uploaded photo does not appear to show a civic or public infrastructure issue.';
+        throw AppError.badRequest(
+          `Image verification failed: ${reason} Reports require an authentic photo of a civic issue (e.g., road damage, waste, leaks).`,
+          undefined,
+          'INVALID_CIVIC_IMAGE',
+        );
+      }
+      if (behavioral.details.velocityCountLast5Min >= 4) {
+        throw AppError.badRequest(
+          'Behavioral verification flagged: Multiple reports submitted too quickly in a short window. Please wait a few minutes before submitting again.',
+          undefined,
+          'RATE_LIMIT_VELOCITY',
+        );
+      }
+    }
+
     const { authority, routing } = await suggestAuthority(input.latitude, input.longitude, input.category);
 
     const ref = reportsRepo.newRef();
     const aiOk = aiAnalysis.status === 'OK';
     const priority: Priority = aiOk && aiAnalysis.priority ? aiAnalysis.priority : 'MEDIUM';
+    const initialStatus: Status = behavioral.riskLevel === 'LOW' ? 'SUBMITTED' : 'UNDER_REVIEW';
 
     try {
       const batch = db.batch();
@@ -129,10 +161,11 @@ export const reportService = {
         description,
         category: input.category,
         priority,
-        status: 'SUBMITTED',
+        status: initialStatus,
         categorySource: 'CITIZEN',
         prioritySource: aiOk ? 'AI' : 'DEFAULT',
         imageUrls,
+        imageHashes,
         location: { latitude: input.latitude, longitude: input.longitude, address: cleanText(input.address, 300) },
         createdBy: user.uid,
         createdByName: user.fullName,
@@ -140,6 +173,7 @@ export const reportService = {
         assignedAuthorityName: authority?.name ?? null,
         routing,
         aiAnalysis,
+        behavioralCheck: behavioral,
         supportCount: 0,
         commentCount: 0,
         verification: { confirmed: 0, disputed: 0 },
@@ -150,15 +184,20 @@ export const reportService = {
         updatedAt: FieldValue.serverTimestamp(),
       } satisfies Record<keyof ReportDoc, unknown>);
 
+      const verificationNote =
+        behavioral.riskLevel !== 'LOW'
+          ? ` (Placed under review: Trust score ${behavioral.trustScore}/100 with flags: ${behavioral.flags.join(', ')})`
+          : '';
+
       timelineWrite(batch, {
         reportId: ref.id,
         type: 'CREATED',
         previousStatus: null,
-        newStatus: 'SUBMITTED',
+        newStatus: initialStatus,
         actor: { uid: user.uid, name: user.fullName, role: user.role },
         explanation: authority
-          ? `Report submitted and routed to ${authority.name} (suggested from coverage area).`
-          : 'Report submitted. No authority matched this location; awaiting manual assignment.',
+          ? `Report submitted and routed to ${authority.name} (suggested from coverage area).${verificationNote}`
+          : `Report submitted. No authority matched this location; awaiting manual assignment.${verificationNote}`,
       });
 
       if (authority) {

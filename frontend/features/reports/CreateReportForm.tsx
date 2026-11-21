@@ -1,6 +1,6 @@
 'use client';
 
-import { Camera, CheckCircle2, Crosshair, Sparkles, X } from 'lucide-react';
+import { Camera, CheckCircle2, Crosshair, ShieldCheck, Sparkles, TriangleAlert, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { CategoryBadge, PriorityBadge } from '@/components/ui/Badges';
@@ -185,6 +185,26 @@ export function CreateReportForm() {
                   <Button type="button" size="sm" variant="ghost" onClick={() => setCategory(ai.category!)}>
                     Use suggested category
                   </Button>
+                  {ai.imageVerification && (
+                    <div className="mt-2 pt-2 border-t border-line/60">
+                      {ai.imageVerification.flagged ? (
+                        <div className="rounded-md border border-amber-400/40 bg-amber-500/10 p-2.5 text-xs text-amber-900 dark:text-amber-200">
+                          <span className="font-semibold flex items-center gap-1">
+                            <TriangleAlert className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" /> Image Verification Notice:
+                          </span>
+                          <p className="mt-0.5">
+                            {ai.imageVerification.flagReason ||
+                              'Uploaded photo may not clearly show a public infrastructure issue matching your description.'}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          Photo verified: genuine civic infrastructure issue (Authenticity: {Math.round(ai.imageVerification.authenticityScore * 100)}%)
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <p className="text-xs text-forest-muted">AI suggestions are recommendations. You and the authority can correct them.</p>
                 </div>
               )}
@@ -334,6 +354,28 @@ function SubmittedPanel({ report, onAnother }: { report: Report; onAnother: () =
             )}
           </dd>
         </div>
+        {report.behavioralCheck && (
+          <div className="rounded-lg border border-line bg-mint p-3 text-sm">
+            <dt className="font-semibold flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-turquoise" /> Verification &amp; Behavioral Check
+            </dt>
+            <dd className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  report.behavioralCheck.riskLevel === 'LOW'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
+                }`}
+              >
+                Trust score: {report.behavioralCheck.trustScore} / 100 • {report.behavioralCheck.riskLevel} RISK
+              </span>
+              <span className="text-xs text-forest-muted">
+                {report.behavioralCheck.details.isCivicIssue ? 'Civic photo confirmed' : 'Non-civic photo flag'} •{' '}
+                {report.behavioralCheck.details.isDuplicateImage ? 'Duplicate image flag' : 'Unique image verified'}
+              </span>
+            </dd>
+          </div>
+        )}
         {aiOk ? (
           <div>
             <dt className="font-semibold">AI analysis</dt>

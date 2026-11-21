@@ -45,6 +45,7 @@ export function toReportDto(r: ReportDoc, ctx: ReportViewerContext = {}) {
     assignedAuthority: r.assignedAuthorityId ? { id: r.assignedAuthorityId, name: r.assignedAuthorityName ?? '' } : null,
     routing: r.routing,
     aiAnalysis: r.aiAnalysis,
+    behavioralCheck: r.behavioralCheck ?? null,
     supportCount: r.supportCount,
     commentCount: r.commentCount,
     verification: r.verification,
