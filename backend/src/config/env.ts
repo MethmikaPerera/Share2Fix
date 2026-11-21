@@ -1,5 +1,8 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import { z } from 'zod';
+
+// .env.local takes precedence over .env (dotenv keeps the first value it finds).
+dotenv.config({ path: ['.env.local', '.env'], quiet: true });
 
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
 const optional = z.preprocess(emptyToUndefined, z.string().optional());
